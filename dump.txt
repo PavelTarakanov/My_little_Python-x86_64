@@ -1,0 +1,89 @@
+digraph{
+	Z[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	Z -> ZL
+	ZL[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
+	ZL -> ZLL
+	ZLL[shape = record, style="filled",fillcolor="lightblue", label="{n}"];
+	ZL -> ZLR
+	ZLR[shape = record, style="filled",fillcolor="lightgreen", label="{*}"];
+	ZLR -> ZLRL
+	ZLRL[shape = record, style="filled",fillcolor="yellow", label="{0}"];
+	ZLR -> ZLRR
+	ZLRR[shape = record, style="filled",fillcolor="lightblue", label="{d}"];
+	Z -> ZR
+	ZR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZR -> ZRL
+	ZRL[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
+	ZRL -> ZRLL
+	ZRLL[shape = record, style="filled",fillcolor="lightblue", label="{fac}"];
+	ZRL -> ZRLR
+	ZRLR[shape = record, style="filled",fillcolor="yellow", label="{1}"];
+	ZR -> ZRR
+	ZRR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRR -> ZRRL
+	ZRRL[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
+	ZRRL -> ZRRLL
+	ZRRLL[shape = record, style="filled",fillcolor="lightblue", label="{i}"];
+	ZRRL -> ZRRLR
+	ZRRLR[shape = record, style="filled",fillcolor="yellow", label="{1}"];
+	ZRR -> ZRRR
+	ZRRR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRRR -> ZRRRL
+	ZRRRL[shape = record, style="filled",fillcolor="lightgreen", label="{INPUT}"];
+	ZRRRL -> ZRRRLL
+	ZRRRLL[shape = record, style="filled",fillcolor="lightblue", label="{n}"];
+	ZRRR -> ZRRRR
+	ZRRRR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRRRR -> ZRRRRL
+	ZRRRRL[shape = record, style="filled",fillcolor="lightgreen", label="{WHILE}"];
+	ZRRRRL -> ZRRRRLL
+	ZRRRRLL[shape = record, style="filled",fillcolor="lightgreen", label="{-}"];
+	ZRRRRLL -> ZRRRRLLL
+	ZRRRRLLL[shape = record, style="filled",fillcolor="lightblue", label="{n}"];
+	ZRRRRLL -> ZRRRRLLR
+	ZRRRRLLR[shape = record, style="filled",fillcolor="lightblue", label="{i}"];
+	ZRRRRL -> ZRRRRLR
+	ZRRRRLR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRRRRLR -> ZRRRRLRL
+	ZRRRRLRL[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
+	ZRRRRLRL -> ZRRRRLRLL
+	ZRRRRLRLL[shape = record, style="filled",fillcolor="lightblue", label="{fac}"];
+	ZRRRRLRL -> ZRRRRLRLR
+	ZRRRRLRLR[shape = record, style="filled",fillcolor="lightgreen", label="{*}"];
+	ZRRRRLRLR -> ZRRRRLRLRL
+	ZRRRRLRLRL[shape = record, style="filled",fillcolor="lightblue", label="{fac}"];
+	ZRRRRLRLR -> ZRRRRLRLRR
+	ZRRRRLRLRR[shape = record, style="filled",fillcolor="lightblue", label="{i}"];
+	ZRRRRLR -> ZRRRRLRR
+	ZRRRRLRR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRRRRLRR -> ZRRRRLRRL
+	ZRRRRLRRL[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
+	ZRRRRLRRL -> ZRRRRLRRLL
+	ZRRRRLRRLL[shape = record, style="filled",fillcolor="lightblue", label="{i}"];
+	ZRRRRLRRL -> ZRRRRLRRLR
+	ZRRRRLRRLR[shape = record, style="filled",fillcolor="lightgreen", label="{+}"];
+	ZRRRRLRRLR -> ZRRRRLRRLRL
+	ZRRRRLRRLRL[shape = record, style="filled",fillcolor="lightblue", label="{i}"];
+	ZRRRRLRRLR -> ZRRRRLRRLRR
+	ZRRRRLRRLRR[shape = record, style="filled",fillcolor="yellow", label="{1}"];
+	ZRRRR -> ZRRRRR
+	ZRRRRR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRRRRR -> ZRRRRRL
+	ZRRRRRL[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
+	ZRRRRRL -> ZRRRRRLL
+	ZRRRRRLL[shape = record, style="filled",fillcolor="lightblue", label="{fac}"];
+	ZRRRRRL -> ZRRRRRLR
+	ZRRRRRLR[shape = record, style="filled",fillcolor="lightgreen", label="{*}"];
+	ZRRRRRLR -> ZRRRRRLRL
+	ZRRRRRLRL[shape = record, style="filled",fillcolor="lightblue", label="{fac}"];
+	ZRRRRRLR -> ZRRRRRLRR
+	ZRRRRRLRR[shape = record, style="filled",fillcolor="lightblue", label="{i}"];
+	ZRRRRR -> ZRRRRRR
+	ZRRRRRR[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
+	ZRRRRRR -> ZRRRRRRL
+	ZRRRRRRL[shape = record, style="filled",fillcolor="lightgreen", label="{PRINT}"];
+	ZRRRRRRL -> ZRRRRRRLL
+	ZRRRRRRLL[shape = record, style="filled",fillcolor="lightblue", label="{fac}"];
+	ZRRRRRR -> ZRRRRRRR
+	ZRRRRRRR[shape = record, style="filled",fillcolor="lightgreen", label="{END_OF_PROGRAMM}"];
+}
