@@ -1,6 +1,9 @@
 #ifndef LANGUAGE_H
 #define LANGUAGE_H
 
+#include <cstdio>
+#include <sys/stat.h>
+
 enum type_t{
     OPERATOR_TYPE = 0,
     VARIABLE_TYPE = 1,
