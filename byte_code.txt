@@ -1,0 +1,4 @@
+mov eax, 0
+mov ecx, [d]
+add eax, ecx
+mov [n], eax

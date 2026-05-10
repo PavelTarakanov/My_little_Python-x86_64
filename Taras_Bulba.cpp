@@ -9,6 +9,41 @@
 
 const unsigned int VAR_LIST_LEN = 100;
 
+tree_errors back_end_base_init(back_end_base_t** back_end_base)
+{
+    assert(back_end_base);
+
+    (*back_end_base) = (back_end_base_t*) calloc(1, sizeof(back_end_base_t));
+
+    if ((*back_end_base) == NULL)
+        return ALLOCATION_ERROR;
+
+    (*back_end_base)->regs = (register_info_t*) calloc(NUMBER_OF_REGS, sizeof(register_info_t));
+
+    if ((*back_end_base)->regs == NULL)
+        return ALLOCATION_ERROR;
+
+    for (int i = 0; i < NUMBER_OF_REGS; i++)
+    {
+        (*back_end_base)->regs[i].free_flag = true;
+        (*back_end_base)->regs[i].reg_value = 0;
+    }
+
+    (*back_end_base)->tree = (tree_t*) calloc(1, sizeof(tree_t));
+
+    if ((*back_end_base)->tree == NULL)
+        return ALLOCATION_ERROR;
+
+    (*back_end_base)->tree->root = NULL;
+    (*back_end_base)->tree->number_of_variables = 0;
+    (*back_end_base)->tree->variable_list = (variable_t*) calloc(VAR_LIST_LEN, sizeof(variable_t));
+
+    if ((*back_end_base)->tree->variable_list == NULL)
+        return ALLOCATION_ERROR;
+
+    return NO_ERROR;
+}
+
 tree_errors tree_init(tree_t** tree)
 {
     assert(tree);
@@ -69,6 +104,15 @@ void infix_tree_destroy(tree_t* tree)
     free(tree->node_list_begin);
     free(tree->variable_list);
     free(tree);
+}
+
+void back_end_destroy(back_end_base_t* back_end_base)
+{
+    assert(back_end_base);
+
+    tree_destroy(back_end_base->tree);
+    free(back_end_base->regs);
+    free(back_end_base);
 }
 
 void tree_destroy(tree_t* tree)

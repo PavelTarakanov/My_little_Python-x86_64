@@ -3,6 +3,9 @@
 
 #include <cstdio>
 #include <sys/stat.h>
+#include <stdint.h>
+
+const uint8_t NUMBER_OF_REGS = 8;
 
 enum type_t{
     OPERATOR_TYPE = 0,
@@ -52,6 +55,13 @@ struct tree_t{node_t* root;
               unsigned int node_list_len;
 };
 
+struct register_info_t{uint8_t reg_value;
+                  bool free_flag;
+};
+//free_flag == true - свободен
+struct back_end_base_t{tree_t* tree;
+                       register_info_t* regs;
+};
 
 enum tree_errors{
     NO_ERROR = 0,
@@ -69,6 +79,8 @@ enum tree_errors{
     TREE_READING_ERROR = 12,
     ASM_MAKING_ERROR = 13,
 };
+tree_errors back_end_base_init(back_end_base_t** back_end_base);
+void back_end_destroy(back_end_base_t* back_end_base);
 
 tree_errors tree_init(tree_t** tree);
 void infix_tree_destroy(tree_t* tree);
@@ -86,7 +98,8 @@ tree_errors tree_dump(tree_t* tree);
 tree_errors node_output(node_t* node, tree_t* tree, FILE* output_address);
 
 tree_errors tree_input(tree_t* tree, char* file_name);
-tree_errors node_assemblating(node_t* node, tree_t* tree, FILE* asm_address, int* label_number);
+uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
+                           FILE* bite_code_address, FILE* asm_code_address);
 
 #endif //LANGUAGE_H
 
