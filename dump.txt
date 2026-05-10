@@ -5,11 +5,11 @@ digraph{
 	ZL -> ZLL
 	ZLL[shape = record, style="filled",fillcolor="lightblue", label="{n}"];
 	ZL -> ZLR
-	ZLR[shape = record, style="filled",fillcolor="lightgreen", label="{+}"];
+	ZLR[shape = record, style="filled",fillcolor="lightgreen", label="{/}"];
 	ZLR -> ZLRL
-	ZLRL[shape = record, style="filled",fillcolor="yellow", label="{0}"];
+	ZLRL[shape = record, style="filled",fillcolor="yellow", label="{2}"];
 	ZLR -> ZLRR
-	ZLRR[shape = record, style="filled",fillcolor="lightblue", label="{d}"];
+	ZLRR[shape = record, style="filled",fillcolor="yellow", label="{4}"];
 	Z -> ZR
 	ZR[shape = record, style="filled",fillcolor="lightgreen", label="{END_OF_PROGRAMM}"];
 }

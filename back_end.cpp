@@ -2,26 +2,34 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/stat.h>
 #include <stdint.h>
-#include "file_using.h"
 #include "language.h"
 
 #define free_reg(reg_number) back_end_base->regs[reg_number].free_flag = true
-#define print_add(bite_code_address, reg_1, reg_2) fputc(0xc0 + (reg_2 << 3) + reg_1, bite_code_address)
-
+#define print_reg_to_reg(byte_code_address, reg_1, reg_2) fputc(0xc0 + (reg_2 << 3) + reg_1, byte_code_address)
+//reg_1 приёмник, reg_2 источник
 static const char* REG_NAMES[8] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
 static uint8_t find_free_reg(back_end_base_t* back_end_base);
-static void print_const(FILE* bite_code_address, int value);
+static void print_const(FILE* byte_code_address, int value);
+static void print_add(FILE* byte_code_address,
+               uint8_t term_1, uint8_t term_2);
+static void print_sub(FILE* byte_code_address,
+               uint8_t minuend, uint8_t subtrahend);
+static void print_mul(FILE* byte_code_address,
+               uint8_t multiplier_1, uint8_t multiplier_2);
+static void print_div(FILE* byte_code_address,
+               uint8_t transmitter_register, uint8_t receiver_register);
+static void print_mov_reg_to_reg(FILE* byte_code_address,
+               uint8_t transmitter_register, uint8_t receiver_register);
 
 uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
-                           FILE* bite_code_address, FILE* asm_code_address)
+                           FILE* byte_code_address, FILE* asm_code_address)
 {
     assert(node);
     assert(back_end_base);
-    assert(bite_code_address);
+    assert(byte_code_address);
     assert(asm_code_address);
 
     uint8_t reg_1 = 0xff;
@@ -39,8 +47,8 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         else
         {
             fprintf(asm_code_address, "mov %s, %d\n", REG_NAMES[reg_1], node->value.number_value);
-            fputc(0xb8 + reg_1, bite_code_address);
-            print_const(bite_code_address, node->value.number_value);
+            fputc(0xb8 + reg_1, byte_code_address);
+            print_const(byte_code_address, node->value.number_value);
         }
         return reg_1;
     }
@@ -64,28 +72,51 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         switch(node->value.operator_name)
         {
             case ADD:
-                reg_1 = make_node_code(node->left, back_end_base, bite_code_address, asm_code_address);
-                reg_2 = make_node_code(node->right, back_end_base, bite_code_address, asm_code_address);
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
+
                 fprintf(asm_code_address, "add %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
-                fputc(0x01, bite_code_address);
-                print_add(bite_code_address, reg_1, reg_2);
+
+                print_add(byte_code_address, reg_1, reg_2);
+
                 free_reg(reg_2);
                 return reg_1;
             case SUB:
-                reg_1 = make_node_code(node->left, back_end_base, bite_code_address, asm_code_address);
-                reg_2 = make_node_code(node->right, back_end_base, bite_code_address, asm_code_address);
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
+
                 fprintf(asm_code_address, "sub %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
+
+                print_sub(byte_code_address, reg_1, reg_2);
+
                 free_reg(reg_2);
                 return reg_1;
             case MUL:
-                reg_1 = make_node_code(node->left, back_end_base, bite_code_address, asm_code_address);
-                reg_2 = make_node_code(node->right, back_end_base, bite_code_address, asm_code_address);
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
+
                 fprintf(asm_code_address, "mul %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
+
+                print_mul(byte_code_address, reg_1, reg_2);
+
                 free_reg(reg_2);
                 return reg_1;
-            case DIV://TODO
+            case DIV:
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
+
+                fprintf(asm_code_address, "push eax\npush edx\n"
+                                          "mov eax, %s\nxor edx, edx\n"
+                                          "div %s\n"
+                                          "mov %s, eax\n"
+                                          "pop edx\npop eax\n",
+                                          REG_NAMES[reg_1], REG_NAMES[reg_2], REG_NAMES[reg_1]);
+
+                print_div(byte_code_address, reg_1, reg_2);
+
+                return reg_1;
             case ASSIGNMENT:
-                reg_1 = make_node_code(node->right, back_end_base, bite_code_address, asm_code_address);
+                reg_1 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
                 fprintf(asm_code_address, "mov [%s], %s\n",
                         back_end_base->tree->variable_list[node->left->value.variable_number].var_name,
                         REG_NAMES[reg_1]);
@@ -100,8 +131,8 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
             case PAR_CLOSE:
                 return 0xff;
             case OP_END:
-                make_node_code(node->left, back_end_base, bite_code_address, asm_code_address);
-                if (node->right != NULL) make_node_code(node->right, back_end_base, bite_code_address, asm_code_address);
+                make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                if (node->right != NULL) make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
                 return 0x0;
             case COPMLEX_OPERATOR_OPEN:
             case COPMLEX_OPERATOR_CLOSE:
@@ -134,13 +165,75 @@ uint8_t find_free_reg(back_end_base_t* back_end_base)
     return 0xff;
 }
 
-void print_const(FILE* bite_code_address, int value)
+void print_const(FILE* byte_code_address, int value)
 {
-    assert(bite_code_address);
+    assert(byte_code_address);
 
     for (int i = 0; i < 4; i++)
     {
-        fputc((uint8_t) value, bite_code_address);
+        fputc((uint8_t) value, byte_code_address);
         value = value >> 8;
     }
+}
+
+void print_add(FILE* byte_code_address,
+               uint8_t term_1, uint8_t term_2)
+{
+    assert(byte_code_address);
+
+    fputc(0x01, byte_code_address);
+    print_reg_to_reg(byte_code_address, term_1, term_2);//результат в term_1
+
+    return;
+}
+
+void print_sub(FILE* byte_code_address,
+               uint8_t minuend, uint8_t subtrahend)
+{
+    assert(byte_code_address);
+
+    fputc(0x29, byte_code_address);
+    print_reg_to_reg(byte_code_address, minuend, subtrahend);//результат в minued(уменьшаемое)
+}
+
+void print_mul(FILE* byte_code_address,
+               uint8_t multiplier_1, uint8_t multiplier_2)
+{
+    assert(byte_code_address);
+
+    fputc(0x0f, byte_code_address);
+    fputc(0xaf, byte_code_address);
+    print_reg_to_reg(byte_code_address, multiplier_1, multiplier_2);//результат в multiplier_1
+
+}
+void print_div(FILE* byte_code_address,
+               uint8_t dividend, uint8_t divider)
+{
+    assert(byte_code_address);
+
+    fputc(0x50, byte_code_address);//push rax
+    fputc(0x52, byte_code_address);//push rdx
+
+    print_mov_reg_to_reg(byte_code_address, dividend, 1);
+    //делимое в eax
+
+    fputc(0x31, byte_code_address);
+    fputc(0xd2, byte_code_address);//xor edx, edx
+
+    fputc(0xf7, byte_code_address);
+    print_reg_to_reg(byte_code_address, divider, 6);//div divider
+
+    print_mov_reg_to_reg(byte_code_address, 1, dividend);
+
+    fputc(0x5a, byte_code_address);//pop rdx
+    fputc(0x58, byte_code_address);//pop rax
+}
+
+void print_mov_reg_to_reg(FILE* byte_code_address,
+               uint8_t transmitter_register, uint8_t receiver_register)
+{
+    assert(byte_code_address);
+
+    fputc(0x89, byte_code_address);
+    print_reg_to_reg(byte_code_address, receiver_register, transmitter_register);
 }
