@@ -1,10 +1,14 @@
 section .data
-    n dd 0
-
+	n dd 0
 section .text
-    global _start
-
-_start:
-    mov eax, 2
-    mov ebx, 0
-    int 0x80
+	mov eax, 2
+	mov ecx, 4
+	push eax
+	push edx
+	mov eax, eax
+	xor edx, edx
+	div ecx
+	mov eax, eax
+	pop edx
+	pop eax
+	mov [n], eax

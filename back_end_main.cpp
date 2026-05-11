@@ -43,7 +43,7 @@ int main(int argc, char* argv[])//TODO объединить функции в б
 
     printf("Start asm code making\n");
 
-    if (make_asm_code(back_end_base, asm_address, byte_code_address))
+    if (make_asm_code(back_end_base, byte_code_address, asm_address))
         return ASM_MAKING_ERROR;
 
     printf("Making asm code is finished\n");

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include "commands.h"
 #include "language.h"
 
 #define free_reg(reg_number) back_end_base->regs[reg_number].free_flag = true
