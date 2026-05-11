@@ -1,14 +1,26 @@
 section .data
 	n dd 0
 section .text
-	mov eax, 2
+	mov eax, 8
 	mov ecx, 4
-	push eax
-	push edx
-	mov eax, eax
-	xor edx, edx
-	div ecx
-	mov eax, eax
-	pop edx
-	pop eax
+	mul eax, ecx
 	mov [n], eax
+
+	mov eax, [n]
+	mov ecx, 4
+	sub eax, ecx
+	cmp eax, 0
+	je label_0
+label_1
+	mov eax, [n]
+	mov ecx, 4
+	sub eax, ecx
+	mov ecx, [n]
+	mov edx, 4
+	sub ecx, edx
+	cmp eax, 0
+	jne label_1
+label_0
+	mov eax, 1
+	xor ebx, ebx
+	int 0x80

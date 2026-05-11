@@ -61,6 +61,7 @@ struct register_info_t{uint8_t reg_value;
 //free_flag == true - свободен
 struct back_end_base_t{tree_t* tree;
                        register_info_t* regs;
+                       unsigned int label_number = 0;
 };
 
 enum tree_errors{

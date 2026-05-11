@@ -63,6 +63,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
 
     uint8_t reg_1 = 0xff;
     uint8_t reg_2 = 0xff;
+    unsigned int actual_label_number = back_end_base->label_number;
 
     //printf("type = %d\nvalue = %d\n", node->type, node->value.number_value);
 
@@ -88,7 +89,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         {
             fprintf(asm_code_address, " ");
         }
-        else//TODO ассемблерный вывод
+        else//TODO бинарный вывод
         {
             fprintf(asm_code_address, "\tmov %s, [%s]\n", REG_NAMES[reg_1],
                     back_end_base->tree->variable_list[node->value.variable_number].var_name);
@@ -150,19 +151,51 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                         back_end_base->tree->variable_list[node->left->value.variable_number].var_name,
                         REG_NAMES[reg_1]);
                 free_reg(reg_1);
-                return 0;
-            case IF:
-
-            case WHILE:
-            case END_OF_PROGRAMM:
+                fprintf(asm_code_address, "\n");
                 return 0x0;
-            case PAR_OPEN:
-            case PAR_CLOSE:
-                return 0xff;
+            case IF:
+                back_end_base->label_number++;
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                fprintf(asm_code_address, "\tcmp %s, 0\n"
+                                          "\tje label_%u\n",
+                                          REG_NAMES[reg_1], actual_label_number);
+                reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
+                fprintf(asm_code_address, "label_%u:\n", actual_label_number);
+                fprintf(asm_code_address, "\n");
+
+                free_reg(reg_1);//TODO можно ли освободить раньше?
+                free_reg(reg_2);
+                return 0x0;
+            case WHILE:
+                back_end_base->label_number++;
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                free_reg(reg_1);
+                fprintf(asm_code_address, "\tcmp %s, 0\n"
+                                          "\tje label_%u\n",
+                                          REG_NAMES[reg_1], actual_label_number);
+                back_end_base->label_number++;
+                fprintf(asm_code_address, "label_%u\n", actual_label_number + 1);
+                reg_2 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                free_reg(reg_2);
+                free_reg(reg_1);
+                fprintf(asm_code_address, "\tcmp %s, 0\n"
+                                          "\tjne label_%u\n"
+                                          "label_%u\n",
+                                          REG_NAMES[reg_2], actual_label_number + 1,
+                                          actual_label_number);
+                return 0x0;
+            case END_OF_PROGRAMM:
+                fprintf(asm_code_address, "\tmov eax, 1\n"
+                                          "\txor ebx, ebx\n"
+                                          "\tint 0x80\n");
+                return 0x0;
             case OP_END:
                 make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 if (node->right != NULL) make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
                 return 0x0;
+            case PAR_OPEN:
+            case PAR_CLOSE:
             case COPMLEX_OPERATOR_OPEN:
             case COPMLEX_OPERATOR_CLOSE:
             case FUNC:
