@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include "file_using.h"
@@ -44,7 +43,7 @@ int main(int argc, char* argv[])//TODO объединить функции в б
 
     printf("Start asm code making\n");
 
-    if (make_node_code(back_end_base->tree->root, back_end_base, asm_address, byte_code_address))
+    if (make_asm_code(back_end_base, asm_address, byte_code_address))
         return ASM_MAKING_ERROR;
 
     printf("Making asm code is finished\n");

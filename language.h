@@ -7,6 +7,16 @@
 
 const uint8_t NUMBER_OF_REGS = 8;
 
+const unsigned char ELF_HEADER[] = {0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00,
+                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x02, 0x00, 0x3e, 0x00, 0x01, 0x00, 0x00, 0x00,
+                                    0xb0, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x40, 0x00, 0x38, 0x00, 0x01, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const unsigned char PROGRAMM_HEADER[] = {};
+
 enum type_t{
     OPERATOR_TYPE = 0,
     VARIABLE_TYPE = 1,
@@ -98,8 +108,8 @@ tree_errors tree_dump(tree_t* tree);
 tree_errors node_output(node_t* node, tree_t* tree, FILE* output_address);
 
 tree_errors tree_input(tree_t* tree, char* file_name);
-uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
-                           FILE* bite_code_address, FILE* asm_code_address);
+tree_errors make_asm_code(back_end_base_t* back_end_base,
+                           FILE* byte_code_address, FILE* asm_code_address);
 
 #endif //LANGUAGE_H
 

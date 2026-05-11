@@ -1,0 +1,14 @@
+     1                                  section .data
+     2 00000000 00000000                	n dd 0
+     3                                  section .text
+     4 00000000 B802000000              	mov eax, 2
+     5 00000005 B904000000              	mov ecx, 4
+     6 0000000A 50                      	push eax
+     7 0000000B 52                      	push edx
+     8 0000000C 89C0                    	mov eax, eax
+     9 0000000E 31D2                    	xor edx, edx
+    10 00000010 F7F1                    	div ecx
+    11 00000012 89C0                    	mov eax, eax
+    12 00000014 5A                      	pop edx
+    13 00000015 58                      	pop eax
+    14 00000016 A3[00000000]            	mov [n], eax

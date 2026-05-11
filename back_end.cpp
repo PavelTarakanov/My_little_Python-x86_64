@@ -9,8 +9,11 @@
 #define free_reg(reg_number) back_end_base->regs[reg_number].free_flag = true
 #define print_reg_to_reg(byte_code_address, reg_1, reg_2) fputc(0xc0 + (reg_2 << 3) + reg_1, byte_code_address)
 //reg_1 приёмник, reg_2 источник
+#define print_elf_header(byte_code_address) for (int i = 0; i < 64; i++) fputc(ELF_HEADER[i], byte_code_address)
 static const char* REG_NAMES[8] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 
+static uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
+                           FILE* bite_code_address, FILE* asm_code_address);
 static uint8_t find_free_reg(back_end_base_t* back_end_base);
 static void print_const(FILE* byte_code_address, int value);
 static void print_add(FILE* byte_code_address,
@@ -23,6 +26,31 @@ static void print_div(FILE* byte_code_address,
                uint8_t transmitter_register, uint8_t receiver_register);
 static void print_mov_reg_to_reg(FILE* byte_code_address,
                uint8_t transmitter_register, uint8_t receiver_register);
+
+tree_errors make_asm_code(back_end_base_t* back_end_base,
+                           FILE* byte_code_address, FILE* asm_code_address)
+{
+    assert(back_end_base);
+    assert(byte_code_address);
+    assert(asm_code_address);
+
+    fprintf(asm_code_address, "section .data\n");
+
+    for(int i = 0; i < back_end_base->tree->number_of_variables; i++)
+    {
+        fprintf(asm_code_address, "\t%s dd 0\n", back_end_base->tree->variable_list[i].var_name);
+    }
+
+    fprintf(asm_code_address, "section .text\n");
+
+    print_elf_header(byte_code_address);
+
+    if (make_node_code(back_end_base->tree->root, back_end_base,
+                       byte_code_address, asm_code_address))
+        return ASM_MAKING_ERROR;
+
+    return NO_ERROR;
+}
 
 uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                            FILE* byte_code_address, FILE* asm_code_address)
@@ -46,7 +74,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         }
         else
         {
-            fprintf(asm_code_address, "mov %s, %d\n", REG_NAMES[reg_1], node->value.number_value);
+            fprintf(asm_code_address, "\tmov %s, %d\n", REG_NAMES[reg_1], node->value.number_value);
             fputc(0xb8 + reg_1, byte_code_address);
             print_const(byte_code_address, node->value.number_value);
         }
@@ -61,7 +89,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         }
         else//TODO ассемблерный вывод
         {
-            fprintf(asm_code_address, "mov %s, [%s]\n", REG_NAMES[reg_1],
+            fprintf(asm_code_address, "\tmov %s, [%s]\n", REG_NAMES[reg_1],
                     back_end_base->tree->variable_list[node->value.variable_number].var_name);
         }
 
@@ -75,7 +103,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
 
-                fprintf(asm_code_address, "add %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
+                fprintf(asm_code_address, "\tadd %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
                 print_add(byte_code_address, reg_1, reg_2);
 
@@ -85,7 +113,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
 
-                fprintf(asm_code_address, "sub %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
+                fprintf(asm_code_address, "\tsub %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
                 print_sub(byte_code_address, reg_1, reg_2);
 
@@ -95,7 +123,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
 
-                fprintf(asm_code_address, "mul %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
+                fprintf(asm_code_address, "\tmul %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
                 print_mul(byte_code_address, reg_1, reg_2);
 
@@ -105,11 +133,11 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
 
-                fprintf(asm_code_address, "push eax\npush edx\n"
-                                          "mov eax, %s\nxor edx, edx\n"
-                                          "div %s\n"
-                                          "mov %s, eax\n"
-                                          "pop edx\npop eax\n",
+                fprintf(asm_code_address, "\tpush eax\n\tpush edx\n"
+                                          "\tmov eax, %s\n\txor edx, edx\n"
+                                          "\tdiv %s\n"
+                                          "\tmov %s, eax\n"
+                                          "\tpop edx\n\tpop eax\n",
                                           REG_NAMES[reg_1], REG_NAMES[reg_2], REG_NAMES[reg_1]);
 
                 print_div(byte_code_address, reg_1, reg_2);
@@ -117,7 +145,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 return reg_1;
             case ASSIGNMENT:
                 reg_1 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
-                fprintf(asm_code_address, "mov [%s], %s\n",
+                fprintf(asm_code_address, "\tmov [%s], %s\n",
                         back_end_base->tree->variable_list[node->left->value.variable_number].var_name,
                         REG_NAMES[reg_1]);
                 free_reg(reg_1);
