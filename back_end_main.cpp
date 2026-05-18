@@ -57,6 +57,10 @@ int main(int argc, char* argv[])//TODO объединить функции в б
         return DUMP_ERROR;
     }
 
+    system("nasm -f elf64 -o test.o asm.txt");
+    system("ld -o test test.o");
+    system("./test");
+
     back_end_destroy(back_end_base);
 
     printf("Back end success!\n");

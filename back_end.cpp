@@ -11,7 +11,7 @@
 #define print_reg_to_reg(byte_code_address, reg_1, reg_2) fputc(0xc0 + (reg_2 << 3) + reg_1, byte_code_address)
 //reg_1 приёмник, reg_2 источник
 #define print_elf_header(byte_code_address) for (int i = 0; i < 64; i++) fputc(ELF_HEADER[i], byte_code_address)
-static const char* REG_NAMES[8] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
+static const char* REG_NAMES[8] = {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi"};
 
 static uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                            FILE* bite_code_address, FILE* asm_code_address);
@@ -27,6 +27,7 @@ static void print_div(FILE* byte_code_address,
                uint8_t transmitter_register, uint8_t receiver_register);
 static void print_mov_reg_to_reg(FILE* byte_code_address,
                uint8_t transmitter_register, uint8_t receiver_register);
+static void print_lib(FILE* asm_code_address, FILE* byte_code_address);
 
 tree_errors make_asm_code(back_end_base_t* back_end_base,
                            FILE* byte_code_address, FILE* asm_code_address)
@@ -42,13 +43,17 @@ tree_errors make_asm_code(back_end_base_t* back_end_base,
         fprintf(asm_code_address, "\t%s dd 0\n", back_end_base->tree->variable_list[i].var_name);
     }
 
-    fprintf(asm_code_address, "section .text\n");
+    fprintf(asm_code_address, "\toutput_str times 20 db 0\n");
+
+    fprintf(asm_code_address, "section .text\n\tglobal _start\n_start:\n");
 
     print_elf_header(byte_code_address);
 
     if (make_node_code(back_end_base->tree->root, back_end_base,
                        byte_code_address, asm_code_address))
         return ASM_MAKING_ERROR;
+
+    print_lib(asm_code_address, byte_code_address);
 
     return NO_ERROR;
 }
@@ -135,11 +140,11 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
 
-                fprintf(asm_code_address, "\tpush eax\n\tpush edx\n"
-                                          "\tmov eax, %s\n\txor edx, edx\n"
+                fprintf(asm_code_address, "\tpush rax\n\tpush rdx\n"
+                                          "\tmov rax, %s\n\txor rdx, rdx\n"
                                           "\tdiv %s\n"
-                                          "\tmov %s, eax\n"
-                                          "\tpop edx\n\tpop eax\n",
+                                          "\tmov %s, rax\n"
+                                          "\tpop rdx\n\tpop rax\n",
                                           REG_NAMES[reg_1], REG_NAMES[reg_2], REG_NAMES[reg_1]);
 
                 print_div(byte_code_address, reg_1, reg_2);
@@ -174,33 +179,47 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                                           "\tje label_%u\n",
                                           REG_NAMES[reg_1], actual_label_number);
                 back_end_base->label_number++;
-                fprintf(asm_code_address, "label_%u\n", actual_label_number + 1);
+                fprintf(asm_code_address, "label_%u:\n", actual_label_number + 1);
                 reg_2 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 free_reg(reg_2);
                 free_reg(reg_1);
                 fprintf(asm_code_address, "\tcmp %s, 0\n"
                                           "\tjne label_%u\n"
-                                          "label_%u\n",
+                                          "label_%u:\n",
                                           REG_NAMES[reg_2], actual_label_number + 1,
                                           actual_label_number);
                 return 0x0;
             case END_OF_PROGRAMM:
-                fprintf(asm_code_address, "\tmov eax, 1\n"
-                                          "\txor ebx, ebx\n"
-                                          "\tint 0x80\n");
+                fprintf(asm_code_address, "\tmov rax, 60\n"
+                                          "\txor rdi, rdi\n"
+                                          "\tsyscall\n");
                 return 0x0;
             case OP_END:
                 make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 if (node->right != NULL) make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
+                return 0x0;
+            case PRINT:
+                reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                fprintf(asm_code_address,
+                       "\tpush rax\n"
+                       "\tmov rax, %s\n"
+                       "\tcall print\n"
+                       "\tpop rax\n", REG_NAMES[reg_1]);
+                return 0x0;
+            case INPUT:
+                fprintf(asm_code_address,
+                       "\tpush rax\n"
+                       "\tcall input\n"
+                       "\tmov [%s], rax\n"
+                       "\tpop rax\n",
+                       back_end_base->tree->variable_list[node->left->value.variable_number].var_name);
                 return 0x0;
             case PAR_OPEN:
             case PAR_CLOSE:
             case COPMLEX_OPERATOR_OPEN:
             case COPMLEX_OPERATOR_CLOSE:
             case FUNC:
-            case PRINT:
-            case INPUT:
             default:
                 printf("ERROR: unknown operator");
                 return 0xff;
@@ -298,4 +317,72 @@ void print_mov_reg_to_reg(FILE* byte_code_address,
 
     fputc(0x89, byte_code_address);
     print_reg_to_reg(byte_code_address, receiver_register, transmitter_register);
+}
+
+void print_lib(FILE* asm_code_address, FILE* byte_code_address)
+{
+    assert(asm_code_address);
+    assert(byte_code_address);
+
+    fprintf(asm_code_address,
+        "print:\n"
+        "\tlea rdi, output_str\n"
+        "\n"
+        "\tcmp rax, 0\n"
+        "\tjg pozitive\n"
+        "\tnot rax\n"
+        "\tinc rax\n"
+        "\tmov byte [rdi], '-'\n"
+        "\tinc rdi\n"
+        "pozitive:\n"
+        "\txor rcx, rcx                ;rcx = 0\n"
+        "\tmov cl, 0                   ;counter\n"
+        "\n"
+        "dec_count_digits:\n"
+        "\tinc cl                      ;cl++\n"
+        "\txor rdx, rdx\n"
+        "\tmov rbx, 10\n"
+        "\tdiv rbx\n"
+        "\tpush rdx\n"
+        "\ttest rax, rax\n"
+        "\tjnz dec_count_digits\n"
+        "\n"
+        "print_dec:\n"
+        "\tpop rax\n"
+        "\tadd al, '0'\n"
+        "\tmov [rdi], al\n"
+        "\tinc rdi                     ;кdi++\n"
+        "\tloop print_dec\n"
+        "\n"
+        "\tmov byte [rdi], 10\n"
+        "\n"
+        "print_and_free_buffer:\n"
+        "\tlea rsi, output_str      ; copy address\n"
+        "\tlea rdi, output_str      ; copy begin(to cmp symbol abd '\\0')\n"
+        "\txor rcx, rcx            ; len counter\n"
+        "\n"
+        "len_calculate:\n"
+        "\tcmp byte [rdi], 0       ; if '\\0'\n"
+        "\tje print_str\n"
+        "\tinc rcx                 ; len counter++\n"
+        "\tinc rdi                 ; next symabol\n"
+        "\tjmp len_calculate\n"
+        "\n"
+        "print_str:\n"
+        "\tmov rax, 1              ; syscall number\n"
+        "\tmov rdi, 1              ; stdout\n"
+        "\tmov rdx, rcx            ; str len\n"
+        "\tsyscall                 ; print str\n"
+        "\n"
+        "\tmov rcx, 20\n"
+        "\tlea rdi, output_str\n"
+        "\n"
+        "free_buffer:\n"
+        "\n"
+        "\tmov byte [rdi], 0\n"
+        "\tinc rdi\n"
+        "\tloop free_buffer\n"
+        "\n"
+        "\tret\n");
+    return;
 }

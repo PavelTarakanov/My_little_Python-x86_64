@@ -1,26 +1,76 @@
 section .data
 	n dd 0
+	output_str times 20 db 0
 section .text
-	mov eax, 8
-	mov ecx, 4
-	mul eax, ecx
-	mov [n], eax
+	global _start
+_start:
+	mov rax, 4
+	mov [n], rax
 
-	mov eax, [n]
-	mov ecx, 4
-	sub eax, ecx
-	cmp eax, 0
-	je label_0
-label_1
-	mov eax, [n]
-	mov ecx, 4
-	sub eax, ecx
-	mov ecx, [n]
-	mov edx, 4
-	sub ecx, edx
-	cmp eax, 0
-	jne label_1
-label_0
-	mov eax, 1
-	xor ebx, ebx
-	int 0x80
+	mov rax, [n]
+	push rax
+	mov rax, rax
+	call print
+	pop rax
+	mov rax, 60
+	xor rdi, rdi
+	syscall
+print:
+	lea rdi, output_str
+
+	cmp rax, 0
+	jg pozitive
+	not rax
+	inc rax
+	mov byte [rdi], '-'
+	inc rdi
+pozitive:
+	xor rcx, rcx                ;rcx = 0
+	mov cl, 0                   ;counter
+
+dec_count_digits:
+	inc cl                      ;cl++
+	xor rdx, rdx
+	mov rbx, 10
+	div rbx
+	push rdx
+	test rax, rax
+	jnz dec_count_digits
+
+print_dec:
+	pop rax
+	add al, '0'
+	mov [rdi], al
+	inc rdi                     ;кdi++
+	loop print_dec
+
+	mov byte [rdi], 10
+
+print_and_free_buffer:
+	lea rsi, output_str      ; copy address
+	lea rdi, output_str      ; copy begin(to cmp symbol abd '\0')
+	xor rcx, rcx            ; len counter
+
+len_calculate:
+	cmp byte [rdi], 0       ; if '\0'
+	je print_str
+	inc rcx                 ; len counter++
+	inc rdi                 ; next symabol
+	jmp len_calculate
+
+print_str:
+	mov rax, 1              ; syscall number
+	mov rdi, 1              ; stdout
+	mov rdx, rcx            ; str len
+	syscall                 ; print str
+
+	mov rcx, 20
+	lea rdi, output_str
+
+free_buffer:
+
+	mov byte [rdi], 0
+	inc rdi
+	loop free_buffer
+
+	ret

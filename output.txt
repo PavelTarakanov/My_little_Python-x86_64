@@ -1,1 +1,1 @@
-( ; ( = ( n nil nil )( * ( 8 nil nil )( 4 nil nil )))( ; ( WHILE ( - ( n nil nil )( 4 nil nil ))( = ( n nil nil )( + ( 4 nil nil )( 4 nil nil ))))( END_OF_PROGRAMM nil nil )))
+( ; ( = ( n nil nil )( 4 nil nil ))( ; ( PRINT ( n nil nil )nil )( END_OF_PROGRAMM nil nil )))
