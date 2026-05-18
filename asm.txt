@@ -1,12 +1,14 @@
 section .data
 	n dd 0
+	input_str times 20 db 0
 	output_str times 20 db 0
 section .text
 	global _start
 _start:
-	mov rax, 4
+	push rax
+	call input
 	mov [n], rax
-
+	pop rax
 	mov rax, [n]
 	push rax
 	mov rax, rax
@@ -15,6 +17,7 @@ _start:
 	mov rax, 60
 	xor rdi, rdi
 	syscall
+;------------------------------------------------------------------
 print:
 	lea rdi, output_str
 
@@ -72,5 +75,67 @@ free_buffer:
 	mov byte [rdi], 0
 	inc rdi
 	loop free_buffer
+
+	ret
+;------------------------------------------------------------
+input:
+	push rbx
+	push rcx
+	push rdx
+	push rdi
+	push rsi
+	mov rax, 0
+	mov rdi, 0
+	lea rsi, input_str
+	mov rdx, 20
+	syscall
+
+	lea rdi, input_str
+	xor rax, rax
+	mov rsi, 1                   ;флаг знака
+
+	xor rcx, rcx
+	skip_spaces:
+	mov cl, [rdi]
+	cmp cl, ' '
+	jne check_sign
+	inc rdi
+	jmp skip_spaces
+check_sign:
+	mov cl, [rdi]
+	cmp cl, '-'
+	je set_negative
+	jmp make_number
+set_negative:
+	mov rsi, -1
+	inc rdi
+
+make_number:
+	mov cl, [rdi]
+	cmp cl, '0'
+	jl done
+	cmp cl, '9'
+	jg done
+
+	sub cl, '0'
+	imul rax, 10
+	add rax, rcx
+
+	inc rdi
+	jmp make_number
+done:
+	imul rax, rsi
+	mov rcx, 20
+	lea rdi, input_str
+free_input_buffer:
+	mov byte [rdi], 0
+	inc rdi
+	loop free_input_buffer
+
+	pop rsi
+	pop rdi
+	pop rdx
+	pop rcx
+	pop rbx
 
 	ret

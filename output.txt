@@ -1,1 +1,1 @@
-( ; ( = ( n nil nil )( 4 nil nil ))( ; ( PRINT ( n nil nil )nil )( END_OF_PROGRAMM nil nil )))
+( ; ( INPUT ( n nil nil )nil )( ; ( PRINT ( n nil nil )nil )( END_OF_PROGRAMM nil nil )))

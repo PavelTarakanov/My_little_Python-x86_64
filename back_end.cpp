@@ -43,6 +43,7 @@ tree_errors make_asm_code(back_end_base_t* back_end_base,
         fprintf(asm_code_address, "\t%s dd 0\n", back_end_base->tree->variable_list[i].var_name);
     }
 
+    fprintf(asm_code_address, "\tinput_str times 20 db 0\n");
     fprintf(asm_code_address, "\toutput_str times 20 db 0\n");
 
     fprintf(asm_code_address, "section .text\n\tglobal _start\n_start:\n");
@@ -325,6 +326,7 @@ void print_lib(FILE* asm_code_address, FILE* byte_code_address)
     assert(byte_code_address);
 
     fprintf(asm_code_address,
+        ";------------------------------------------------------------------\n"
         "print:\n"
         "\tlea rdi, output_str\n"
         "\n"
@@ -382,6 +384,70 @@ void print_lib(FILE* asm_code_address, FILE* byte_code_address)
         "\tmov byte [rdi], 0\n"
         "\tinc rdi\n"
         "\tloop free_buffer\n"
+        "\n"
+        "\tret\n");
+
+    fprintf(asm_code_address,
+        ";------------------------------------------------------------\n"
+        "input:\n"
+        "\tpush rbx\n"
+        "\tpush rcx\n"
+        "\tpush rdx\n"
+        "\tpush rdi\n"
+        "\tpush rsi\n"
+        "\tmov rax, 0\n"
+        "\tmov rdi, 0\n"
+        "\tlea rsi, input_str\n"
+        "\tmov rdx, 20\n"
+        "\tsyscall\n"
+        "\n"
+        "\tlea rdi, input_str\n"
+        "\txor rax, rax\n"
+        "\tmov rsi, 1                   ;флаг знака\n"
+        "\n"
+        "\txor rcx, rcx\n"
+        "\tskip_spaces:\n"
+        "\tmov cl, [rdi]\n"
+        "\tcmp cl, ' '\n"
+        "\tjne check_sign\n"
+        "\tinc rdi\n"
+        "\tjmp skip_spaces\n"
+        "check_sign:\n"
+        "\tmov cl, [rdi]\n"
+        "\tcmp cl, '-'\n"
+        "\tje set_negative\n"
+        "\tjmp make_number\n"
+        "set_negative:\n"
+        "\tmov rsi, -1\n"
+        "\tinc rdi\n"
+        "\n"
+        "make_number:\n"
+        "\tmov cl, [rdi]\n"
+        "\tcmp cl, '0'\n"
+        "\tjl done\n"
+        "\tcmp cl, '9'\n"
+        "\tjg done\n"
+        "\n"
+        "\tsub cl, '0'\n"
+        "\timul rax, 10\n"
+        "\tadd rax, rcx\n"
+        "\n"
+        "\tinc rdi\n"
+        "\tjmp make_number\n"
+        "done:\n"
+        "\timul rax, rsi\n"
+        "\tmov rcx, 20\n"
+        "\tlea rdi, input_str\n"
+        "free_input_buffer:\n"
+        "\tmov byte [rdi], 0\n"
+        "\tinc rdi\n"
+        "\tloop free_input_buffer\n"
+        "\n"
+        "\tpop rsi\n"
+        "\tpop rdi\n"
+        "\tpop rdx\n"
+        "\tpop rcx\n"
+        "\tpop rbx\n"
         "\n"
         "\tret\n");
     return;

@@ -209,16 +209,26 @@ node_t** lexic_analiz(char** buffer, tree_t* tree)
             node_list[node_number] = PAR_CLOSE_();
             (*buffer)++;
         }
-        else if (isdigit(**buffer))//TODO отрицательные числа
+        else if (isdigit(**buffer) || **buffer == '-')
         {
             val = 0;
             buffer_at_start = *buffer;
-
-            while ('0' <= **buffer && **buffer <= '9')
+            if (**buffer == '-')
             {
-                val = val*10 + (**buffer - '0');
                 (*buffer)++;
+                while ('0' <= **buffer && **buffer <= '9')
+                {
+                    val = val*10 - (**buffer - '0');
+                    (*buffer)++;
+                }
             }
+            else
+                while ('0' <= **buffer && **buffer <= '9')
+                    {
+                        val = val*10 + (**buffer - '0');
+                        (*buffer)++;
+                    }
+
             if (buffer_at_start != *buffer)
                 node_list[node_number] = NUM_(val);
         }
