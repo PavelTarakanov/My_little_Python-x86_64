@@ -40,7 +40,7 @@ tree_errors make_asm_code(back_end_base_t* back_end_base,
 
     for(int i = 0; i < back_end_base->tree->number_of_variables; i++)
     {
-        fprintf(asm_code_address, "\t%s dd 0\n", back_end_base->tree->variable_list[i].var_name);
+        fprintf(asm_code_address, "\t%s dq 0\n", back_end_base->tree->variable_list[i].var_name);
     }
 
     fprintf(asm_code_address, "\tinput_str times 20 db 0\n");
@@ -131,7 +131,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
 
-                fprintf(asm_code_address, "\tmul %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
+                fprintf(asm_code_address, "\timul %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
                 print_mul(byte_code_address, reg_1, reg_2);
 
@@ -181,7 +181,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                                           REG_NAMES[reg_1], actual_label_number);
                 back_end_base->label_number++;
                 fprintf(asm_code_address, "label_%u:\n", actual_label_number + 1);
-                reg_2 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+                reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
                 free_reg(reg_2);
                 free_reg(reg_1);
