@@ -61,7 +61,11 @@ struct register_info_t{uint8_t reg_value;
 //free_flag == true - свободен
 struct back_end_base_t{tree_t* tree;
                        register_info_t* regs;
+                       uint8_t* byte_code;
                        unsigned int label_number = 0;
+                       unsigned int text_section_len = 0;
+                       unsigned int data_section_len = 0;
+                       unsigned int instruction_pointer = 0;
 };
 
 enum tree_errors{
@@ -79,7 +83,10 @@ enum tree_errors{
     DUMP_ERROR = 11,
     TREE_READING_ERROR = 12,
     ASM_MAKING_ERROR = 13,
+    NASM_ERROR = 14,
+    LD_ERROR = 15
 };
+
 tree_errors back_end_base_init(back_end_base_t** back_end_base);
 void back_end_destroy(back_end_base_t* back_end_base);
 
@@ -99,8 +106,7 @@ tree_errors tree_dump(tree_t* tree);
 tree_errors node_output(node_t* node, tree_t* tree, FILE* output_address);
 
 tree_errors tree_input(tree_t* tree, char* file_name);
-tree_errors make_asm_code(back_end_base_t* back_end_base,
-                           FILE* byte_code_address, FILE* asm_code_address);
+tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv);
 
 #endif //LANGUAGE_H
 

@@ -17,34 +17,25 @@ FRONTEND_TARGET = front_end.out
 BACKEND_FILES = $(COMMON_FILES) back_end.cpp back_end_main.cpp input.cpp
 BACKEND_TARGET = back_end.out
 
-NASM = nasm
-NASMFLAGS = -f elf64
-ASM_TEST_SRC = test.asm
-ASM_TEST_LST = test.lst
-
 .PHONY: all front_end back_end asm_test clean clean-all help
 
-all: front_end back_end
+all: $(FRONTEND_TARGET) $(BACKEND_TARGET)
 
 front_end: $(FRONTEND_TARGET)
 
 back_end: $(BACKEND_TARGET)
 
-asm_test:
-	$(NASM) $(NASMFLAGS) $(ASM_TEST_SRC) -l $(ASM_TEST_LST)
-
 $(FRONTEND_TARGET): $(FRONTEND_FILES)
-	$(CXX) $^ $(CXXFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(BACKEND_TARGET): $(BACKEND_FILES)
-	$(CXX) $^ $(CXXFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 clean:
 	rm -f *.o
 
 clean-all: clean
 	rm -f $(FRONTEND_TARGET) $(BACKEND_TARGET)
-	rm -f $(ASM_TEST_LST)
 
 clean-exec:
 	rm -f $(FRONTEND_TARGET) $(BACKEND_TARGET)
@@ -55,7 +46,6 @@ help:
 	@echo "  make all        - то же самое"
 	@echo "  make front_end  - сборка только фронтенда"
 	@echo "  make back_end   - сборка только бэкенда"
-	@echo "  make asm_test   - сборка тестового ASM файла"
 	@echo "  make clean      - удаление .o файлов"
 	@echo "  make clean-exec - удаление только исполняемых файлов"
-	@echo "  make clean-all  - полная очистка (.o + исполняемые + листинги)"
+	@echo "  make clean-all  - полная очистка (.o + исполняемые)"

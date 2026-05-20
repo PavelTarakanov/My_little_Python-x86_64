@@ -4,57 +4,96 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include "file_using.h"
 #include "commands.h"
 #include "language.h"
 
 #define free_reg(reg_number) back_end_base->regs[reg_number].free_flag = true
-#define print_reg_to_reg(byte_code_address, reg_1, reg_2) fputc(0xc0 + (reg_2 << 3) + reg_1, byte_code_address)
-//reg_1 приёмник, reg_2 источник
-#define print_elf_header(byte_code_address) for (int i = 0; i < 64; i++) fputc(ELF_HEADER[i], byte_code_address)
+
 static const char* REG_NAMES[8] = {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi"};
 
 static uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                            FILE* bite_code_address, FILE* asm_code_address);
 static uint8_t find_free_reg(back_end_base_t* back_end_base);
-static void print_const(FILE* byte_code_address, int value);
-static void print_add(FILE* byte_code_address,
+static tree_errors print_header(back_end_base_t* back_end_base);
+static void print_reg_to_reg(back_end_base_t* back_end_base, uint8_t reg_1, uint8_t reg_2);
+static void print_mem_to_reg(back_end_base_t* back_end_base,
+                      uint8_t reg, unsigned int variable_number);
+static void print_reg_to_mem(back_end_base_t* back_end_base,
+                      uint8_t reg, unsigned int variable_number);
+static void print_const(back_end_base_t* back_end_base, int value);
+static void print_const_4_byte(back_end_base_t* back_end_base, int value);
+static void print_add(back_end_base_t* back_end_base,
                uint8_t term_1, uint8_t term_2);
-static void print_sub(FILE* byte_code_address,
+static void print_sub(back_end_base_t* back_end_base,
                uint8_t minuend, uint8_t subtrahend);
-static void print_mul(FILE* byte_code_address,
+static void print_mul(back_end_base_t* back_end_base,
                uint8_t multiplier_1, uint8_t multiplier_2);
-static void print_div(FILE* byte_code_address,
+static void print_div(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
-static void print_mov_reg_to_reg(FILE* byte_code_address,
+static void print_mov_reg_to_reg(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
-static void print_lib(FILE* asm_code_address, FILE* byte_code_address);
+static void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address);
 
-tree_errors make_asm_code(back_end_base_t* back_end_base,
-                           FILE* byte_code_address, FILE* asm_code_address)
+tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
 {
     assert(back_end_base);
-    assert(byte_code_address);
-    assert(asm_code_address);
+
+    FILE* asm_code_address = NULL;
+    FILE* byte_code_address = NULL;
+
+    if (check_file_opening(argv[2], &asm_code_address, "w+"))
+    {
+        back_end_destroy(back_end_base);
+        return FILE_OPENING_ERROR;
+    }
+
+    if (check_file_opening(argv[3], &byte_code_address, "w+"))
+    {
+        back_end_destroy(back_end_base);
+        return FILE_OPENING_ERROR;
+    }
+
+    printf("Start asm code making\n");
 
     fprintf(asm_code_address, "section .data\n");
 
     for(int i = 0; i < back_end_base->tree->number_of_variables; i++)
     {
         fprintf(asm_code_address, "\t%s dq 0\n", back_end_base->tree->variable_list[i].var_name);
+        back_end_base->data_section_len += 8;
     }
 
     fprintf(asm_code_address, "\tinput_str times 20 db 0\n");
     fprintf(asm_code_address, "\toutput_str times 20 db 0\n");
+    back_end_base->data_section_len += 40;
 
     fprintf(asm_code_address, "section .text\n\tglobal _start\n_start:\n");
 
-    print_elf_header(byte_code_address);
+    print_header(back_end_base);
 
     if (make_node_code(back_end_base->tree->root, back_end_base,
                        byte_code_address, asm_code_address))
         return ASM_MAKING_ERROR;
 
-    print_lib(asm_code_address, byte_code_address);
+    for (unsigned int i = 0; i < back_end_base->instruction_pointer; i++)
+        fputc(back_end_base->byte_code[i], byte_code_address);
+
+    print_asm_lib(asm_code_address, byte_code_address);
+
+    if (check_file_closing(asm_code_address))
+        printf("Error while closing file!");
+
+    if (check_file_closing(byte_code_address))
+        printf("Error while closing file!");
+
+    if (system("nasm -f elf64 -l asm.lst -o asm.o asm.txt"))
+        return NASM_ERROR;
+
+    if (system("ld -o asm asm.o"))
+        return LD_ERROR;
+
+    printf("Making asm code is finished\n");
 
     return NO_ERROR;
 }
@@ -83,8 +122,9 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         else
         {
             fprintf(asm_code_address, "\tmov %s, %d\n", REG_NAMES[reg_1], node->value.number_value);
-            fputc(0xb8 + reg_1, byte_code_address);
-            print_const(byte_code_address, node->value.number_value);
+            back_end_base->byte_code[back_end_base->instruction_pointer] = 0xb8 + reg_1;
+            back_end_base->instruction_pointer++;
+            print_const(back_end_base, node->value.number_value);
         }
         return reg_1;
     }
@@ -95,11 +135,13 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         {
             fprintf(asm_code_address, " ");
         }
-        else//TODO бинарный вывод
+        else
         {
             fprintf(asm_code_address, "\tmov %s, [%s]\n", REG_NAMES[reg_1],
                     back_end_base->tree->variable_list[node->value.variable_number].var_name);
+            print_mem_to_reg(back_end_base, reg_1, node->value.variable_number);
         }
+
 
         return reg_1;
     }
@@ -113,7 +155,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
 
                 fprintf(asm_code_address, "\tadd %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
-                print_add(byte_code_address, reg_1, reg_2);
+                print_add(back_end_base, reg_1, reg_2);
 
                 free_reg(reg_2);
                 return reg_1;
@@ -123,7 +165,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
 
                 fprintf(asm_code_address, "\tsub %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
-                print_sub(byte_code_address, reg_1, reg_2);
+                print_sub(back_end_base, reg_1, reg_2);
 
                 free_reg(reg_2);
                 return reg_1;
@@ -133,7 +175,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
 
                 fprintf(asm_code_address, "\timul %s, %s\n", REG_NAMES[reg_1], REG_NAMES[reg_2]);
 
-                print_mul(byte_code_address, reg_1, reg_2);
+                print_mul(back_end_base, reg_1, reg_2);
 
                 free_reg(reg_2);
                 return reg_1;
@@ -148,7 +190,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                                           "\tpop rdx\n\tpop rax\n",
                                           REG_NAMES[reg_1], REG_NAMES[reg_2], REG_NAMES[reg_1]);
 
-                print_div(byte_code_address, reg_1, reg_2);
+                print_div(back_end_base, reg_1, reg_2);
 
                 return reg_1;
             case ASSIGNMENT:
@@ -156,6 +198,9 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 fprintf(asm_code_address, "\tmov [%s], %s\n",
                         back_end_base->tree->variable_list[node->left->value.variable_number].var_name,
                         REG_NAMES[reg_1]);
+
+                print_reg_to_mem(back_end_base, reg_1, node->value.variable_number);
+
                 free_reg(reg_1);
                 fprintf(asm_code_address, "\n");
                 return 0x0;
@@ -247,80 +292,188 @@ uint8_t find_free_reg(back_end_base_t* back_end_base)
     return 0xff;
 }
 
-void print_const(FILE* byte_code_address, int value)
+tree_errors print_header(back_end_base_t* back_end_base)
 {
-    assert(byte_code_address);
+    assert(back_end_base);
 
-    for (int i = 0; i < 4; i++)
-    {
-        fputc((uint8_t) value, byte_code_address);
-        value = value >> 8;
-    }
+    for (; back_end_base->instruction_pointer < 0x40; back_end_base->instruction_pointer++)
+        back_end_base->byte_code[back_end_base->instruction_pointer] = ELF_HEADER[back_end_base->instruction_pointer];
+
+    for (; back_end_base->instruction_pointer < 0x78; back_end_base->instruction_pointer++)
+        back_end_base->byte_code[back_end_base->instruction_pointer] = PROGRAMM_HEADER[back_end_base->instruction_pointer - 0x40];
+
+    for (; back_end_base->instruction_pointer < 0xb0; back_end_base->instruction_pointer++)
+        back_end_base->byte_code[back_end_base->instruction_pointer] = TEXT_HEADER[back_end_base->instruction_pointer - 0x78];
+
+    for (; back_end_base->instruction_pointer < 0xe8; back_end_base->instruction_pointer++)
+        back_end_base->byte_code[back_end_base->instruction_pointer] = DATA_HEADER[back_end_base->instruction_pointer - 0xb0];
+
+    for (; back_end_base->instruction_pointer < 0x1000; back_end_base->instruction_pointer++)
+        back_end_base->byte_code[back_end_base->instruction_pointer] = 0x00;
+
+    return NO_ERROR;
 }
 
-void print_add(FILE* byte_code_address,
-               uint8_t term_1, uint8_t term_2)
+void print_reg_to_reg(back_end_base_t* back_end_base, uint8_t reg_1, uint8_t reg_2)
 {
-    assert(byte_code_address);
+    assert(back_end_base);//reg_1 приёмник, reg_2 источник
 
-    fputc(0x01, byte_code_address);
-    print_reg_to_reg(byte_code_address, term_1, term_2);//результат в term_1
+    back_end_base->byte_code[back_end_base->instruction_pointer] = (uint8_t) (0xc0 + (reg_2 << 3) + reg_1);
+    back_end_base->instruction_pointer++;
 
     return;
 }
 
-void print_sub(FILE* byte_code_address,
+void print_mem_to_reg(back_end_base_t* back_end_base,
+                      uint8_t reg, unsigned int variable_number)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x8b;//непосредственно код mov
+    back_end_base->byte_code[back_end_base->instruction_pointer + 2] = (uint8_t) ((reg << 3) + 0b100);//в какой регистр
+    back_end_base->byte_code[back_end_base->instruction_pointer + 3] = 0x25;//SIB-байт
+
+    back_end_base->instruction_pointer += 4;
+    print_const_4_byte(back_end_base,
+                0x402000 + (variable_number << 3));
+
+    return;
+}
+
+void print_reg_to_mem(back_end_base_t* back_end_base,
+                      uint8_t reg, unsigned int variable_number)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x89;//непосредственно код mov
+    back_end_base->byte_code[back_end_base->instruction_pointer + 2] = (uint8_t) ((reg << 3) + 0b100);//из какого регистра
+    back_end_base->byte_code[back_end_base->instruction_pointer + 3] = 0x25;//SIB-байт
+
+    back_end_base->instruction_pointer += 4;
+    print_const_4_byte(back_end_base,
+                0x402000 + (variable_number << 3));
+    return;
+}
+
+void print_const(back_end_base_t* back_end_base, int value)
+{
+    assert(back_end_base);
+
+    for (int i = 0; i < 8; i++)
+    {
+        back_end_base->byte_code[back_end_base->instruction_pointer] = (uint8_t) value;
+        back_end_base->instruction_pointer++;
+        value = value >> 8;
+    }
+}
+
+void print_const_4_byte(back_end_base_t* back_end_base, int value)
+{
+    assert(back_end_base);
+
+    for (int i = 0; i < 4; i++)
+    {
+        back_end_base->byte_code[back_end_base->instruction_pointer] = (uint8_t) value;
+        back_end_base->instruction_pointer++;
+        value = value >> 8;
+    }
+}
+
+void print_add(back_end_base_t* back_end_base,
+               uint8_t term_1, uint8_t term_2)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x01;//непосредственно код add
+
+    back_end_base->instruction_pointer += 2;
+
+    print_reg_to_reg(back_end_base, term_1, term_2);//результат в term_1
+
+    return;
+}
+
+void print_sub(back_end_base_t* back_end_base,
                uint8_t minuend, uint8_t subtrahend)
 {
-    assert(byte_code_address);
+    assert(back_end_base);
 
-    fputc(0x29, byte_code_address);
-    print_reg_to_reg(byte_code_address, minuend, subtrahend);//результат в minued(уменьшаемое)
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x29;//непосредственно sub
+
+    back_end_base->instruction_pointer += 2;
+
+    print_reg_to_reg(back_end_base, minuend, subtrahend);//результат в minued(уменьшаемое)
+
+    return;
 }
 
-void print_mul(FILE* byte_code_address,
+void print_mul(back_end_base_t* back_end_base,
                uint8_t multiplier_1, uint8_t multiplier_2)
 {
-    assert(byte_code_address);
+    assert(back_end_base);
 
-    fputc(0x0f, byte_code_address);
-    fputc(0xaf, byte_code_address);
-    print_reg_to_reg(byte_code_address, multiplier_1, multiplier_2);//результат в multiplier_1
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x0f;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 2] = 0xaf;//непосредственно imul
+
+    back_end_base->instruction_pointer += 3;
+
+    print_reg_to_reg(back_end_base, multiplier_2, multiplier_1);//результат в multiplier_1
 
 }
-void print_div(FILE* byte_code_address,
+
+void print_div(back_end_base_t* back_end_base,
                uint8_t dividend, uint8_t divider)
 {
-    assert(byte_code_address);
+    assert(back_end_base);
 
-    fputc(0x50, byte_code_address);//push rax
-    fputc(0x52, byte_code_address);//push rdx
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x50;//push rax
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x52;//push rdx
 
-    print_mov_reg_to_reg(byte_code_address, dividend, 1);
+    back_end_base->instruction_pointer += 2;
+
+    print_mov_reg_to_reg(back_end_base, dividend, 1);
     //делимое в eax
 
-    fputc(0x31, byte_code_address);
-    fputc(0xd2, byte_code_address);//xor edx, edx
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x31;//непосредственно xor
+    back_end_base->byte_code[back_end_base->instruction_pointer + 2] = 0xd2;//edx, edx
 
-    fputc(0xf7, byte_code_address);
-    print_reg_to_reg(byte_code_address, divider, 6);//div divider
+    back_end_base->byte_code[back_end_base->instruction_pointer + 3] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 4] = 0xf7;//непосредственно div
 
-    print_mov_reg_to_reg(byte_code_address, 1, dividend);
+    back_end_base->instruction_pointer += 5;
 
-    fputc(0x5a, byte_code_address);//pop rdx
-    fputc(0x58, byte_code_address);//pop rax
+    print_reg_to_reg(back_end_base, divider, 6);//div делитель
+
+    print_mov_reg_to_reg(back_end_base, 1, dividend);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x5a;//pop rdx
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x58;//pop rax
+
+    back_end_base->instruction_pointer += 2;
+
+    return;
 }
 
-void print_mov_reg_to_reg(FILE* byte_code_address,
+void print_mov_reg_to_reg(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register)
 {
-    assert(byte_code_address);
+    assert(back_end_base);
 
-    fputc(0x89, byte_code_address);
-    print_reg_to_reg(byte_code_address, receiver_register, transmitter_register);
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x89;//непосредственно mov
+
+    print_reg_to_reg(back_end_base, receiver_register, transmitter_register);
+
+    return;
 }
 
-void print_lib(FILE* asm_code_address, FILE* byte_code_address)
+void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address)
 {
     assert(asm_code_address);
     assert(byte_code_address);

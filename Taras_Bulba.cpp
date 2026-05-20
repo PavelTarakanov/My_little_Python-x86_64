@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/stat.h>
-#include "file_using.h"
 #include "language.h"
 
 const unsigned int VAR_LIST_LEN = 100;
+const unsigned int START_CODE_LEN = 0x5000;
 
 tree_errors back_end_base_init(back_end_base_t** back_end_base)
 {
@@ -16,6 +15,11 @@ tree_errors back_end_base_init(back_end_base_t** back_end_base)
     (*back_end_base) = (back_end_base_t*) calloc(1, sizeof(back_end_base_t));
 
     if ((*back_end_base) == NULL)
+        return ALLOCATION_ERROR;
+
+    (*back_end_base)->byte_code = (uint8_t*) calloc(START_CODE_LEN, sizeof(uint8_t));
+
+    if ((*back_end_base)->byte_code == NULL)
         return ALLOCATION_ERROR;
 
     (*back_end_base)->regs = (register_info_t*) calloc(NUMBER_OF_REGS, sizeof(register_info_t));
@@ -111,6 +115,7 @@ void back_end_destroy(back_end_base_t* back_end_base)
     assert(back_end_base);
 
     tree_destroy(back_end_base->tree);
+    free(back_end_base->byte_code);
     free(back_end_base->regs);
     free(back_end_base);
 }

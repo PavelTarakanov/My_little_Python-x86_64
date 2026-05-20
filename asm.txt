@@ -1,8 +1,6 @@
 section .data
 	n dq 0
 	d dq 0
-	fac dq 0
-	i dq 0
 	input_str times 20 db 0
 	output_str times 20 db 0
 section .text
@@ -13,48 +11,6 @@ _start:
 	imul rax, rcx
 	mov [n], rax
 
-	mov rax, 1
-	mov [fac], rax
-
-	mov rax, 1
-	mov [i], rax
-
-	push rax
-	call input
-	mov [n], rax
-	pop rax
-	mov rax, [n]
-	mov rcx, [i]
-	sub rax, rcx
-	cmp rax, 0
-	je label_0
-label_1:
-	mov rax, [fac]
-	mov rcx, [i]
-	imul rax, rcx
-	mov [fac], rax
-
-	mov rax, [i]
-	mov rcx, 1
-	add rax, rcx
-	mov [i], rax
-
-	mov rax, [n]
-	mov rcx, [i]
-	sub rax, rcx
-	cmp rax, 0
-	jne label_1
-label_0:
-	mov rax, [fac]
-	mov rcx, [i]
-	imul rax, rcx
-	mov [fac], rax
-
-	mov rax, [fac]
-	push rax
-	mov rax, rax
-	call print
-	pop rax
 	mov rax, 60
 	xor rdi, rdi
 	syscall

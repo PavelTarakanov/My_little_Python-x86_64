@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/stat.h>
 #include "file_using.h"
 #include "language.h"
