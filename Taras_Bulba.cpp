@@ -33,6 +33,9 @@ tree_errors back_end_base_init(back_end_base_t** back_end_base)
         (*back_end_base)->regs[i].reg_value = 0;
     }
 
+    (*back_end_base)->regs[4].free_flag = false;
+    (*back_end_base)->regs[5].free_flag = false;//заблокировал rsp и rbp
+
     (*back_end_base)->tree = (tree_t*) calloc(1, sizeof(tree_t));
 
     if ((*back_end_base)->tree == NULL)

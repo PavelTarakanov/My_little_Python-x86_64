@@ -16,6 +16,8 @@ static uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                            FILE* bite_code_address, FILE* asm_code_address);
 static uint8_t find_free_reg(back_end_base_t* back_end_base);
 static tree_errors print_header(back_end_base_t* back_end_base);
+static void print_data(back_end_base_t* back_end_base);
+static void print_const_to_reg(back_end_base_t* back_end_base, uint8_t reg, int value);
 static void print_reg_to_reg(back_end_base_t* back_end_base, uint8_t reg_1, uint8_t reg_2);
 static void print_mem_to_reg(back_end_base_t* back_end_base,
                       uint8_t reg, unsigned int variable_number);
@@ -33,6 +35,7 @@ static void print_div(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
 static void print_mov_reg_to_reg(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
+static void print_end_of_programm(back_end_base_t* back_end_base);
 static void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address);
 
 tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
@@ -75,6 +78,8 @@ tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
     if (make_node_code(back_end_base->tree->root, back_end_base,
                        byte_code_address, asm_code_address))
         return ASM_MAKING_ERROR;
+
+    print_data(back_end_base);
 
     for (unsigned int i = 0; i < back_end_base->instruction_pointer; i++)
         fputc(back_end_base->byte_code[i], byte_code_address);
@@ -122,9 +127,8 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
         else
         {
             fprintf(asm_code_address, "\tmov %s, %d\n", REG_NAMES[reg_1], node->value.number_value);
-            back_end_base->byte_code[back_end_base->instruction_pointer] = 0xb8 + reg_1;
-            back_end_base->instruction_pointer++;
-            print_const(back_end_base, node->value.number_value);
+
+            print_const_to_reg(back_end_base, reg_1, node->value.number_value);
         }
         return reg_1;
     }
@@ -199,7 +203,7 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                         back_end_base->tree->variable_list[node->left->value.variable_number].var_name,
                         REG_NAMES[reg_1]);
 
-                print_reg_to_mem(back_end_base, reg_1, node->value.variable_number);
+                print_reg_to_mem(back_end_base, reg_1, node->left->value.variable_number);
 
                 free_reg(reg_1);
                 fprintf(asm_code_address, "\n");
@@ -240,6 +244,8 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 fprintf(asm_code_address, "\tmov rax, 60\n"
                                           "\txor rdi, rdi\n"
                                           "\tsyscall\n");
+
+                print_end_of_programm(back_end_base);
                 return 0x0;
             case OP_END:
                 make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
@@ -314,6 +320,18 @@ tree_errors print_header(back_end_base_t* back_end_base)
     return NO_ERROR;
 }
 
+void print_const_to_reg(back_end_base_t* back_end_base, uint8_t reg, int value)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0xb8 + reg;
+    back_end_base->instruction_pointer += 2;
+
+    print_const(back_end_base, value);
+
+    return;
+}
 void print_reg_to_reg(back_end_base_t* back_end_base, uint8_t reg_1, uint8_t reg_2)
 {
     assert(back_end_base);//reg_1 приёмник, reg_2 источник
@@ -336,7 +354,7 @@ void print_mem_to_reg(back_end_base_t* back_end_base,
 
     back_end_base->instruction_pointer += 4;
     print_const_4_byte(back_end_base,
-                0x402000 + (variable_number << 3));
+                0x402000 + (variable_number * 8));
 
     return;
 }
@@ -353,7 +371,7 @@ void print_reg_to_mem(back_end_base_t* back_end_base,
 
     back_end_base->instruction_pointer += 4;
     print_const_4_byte(back_end_base,
-                0x402000 + (variable_number << 3));
+                0x402000 + (variable_number * 8));
     return;
 }
 
@@ -469,6 +487,39 @@ void print_mov_reg_to_reg(back_end_base_t* back_end_base,
     back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x89;//непосредственно mov
 
     print_reg_to_reg(back_end_base, receiver_register, transmitter_register);
+
+    return;
+}
+
+void print_data(back_end_base_t* back_end_base)
+{
+    assert(back_end_base);
+
+    for(;back_end_base->instruction_pointer < 0x2000; back_end_base->instruction_pointer++)
+        back_end_base->byte_code[back_end_base->instruction_pointer] = 0x00;
+
+    for (int i = 0; i < back_end_base->tree->number_of_variables; i++)
+        print_const(back_end_base, back_end_base->tree->variable_list[i].var_value);
+
+    return;
+}
+
+void print_end_of_programm(back_end_base_t* back_end_base)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0xb8;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x3c;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 2] = 0x00;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 3] = 0x00;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 4] = 0x00;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 5] = 0x48;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 6] = 0x31;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 7] = 0xff;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 8] = 0x0f;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 9] = 0x05;
+
+    back_end_base->instruction_pointer += 10;
 
     return;
 }
