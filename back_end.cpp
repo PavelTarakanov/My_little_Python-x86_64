@@ -35,6 +35,8 @@ static void print_div(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
 static void print_mov_reg_to_reg(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
+static void print_cmp_reg_and_const(back_end_base_t* back_end_base, uint8_t reg, int value);
+static void print_je(back_end_base_t* back_end_base, unsigned int label_address);
 static void print_end_of_programm(back_end_base_t* back_end_base);
 static void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address);
 
@@ -114,6 +116,8 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
     uint8_t reg_1 = 0xff;
     uint8_t reg_2 = 0xff;
     unsigned int actual_label_number = back_end_base->label_number;
+    uint32_t label_address_1 = 0;
+    uint32_t label_address_2 = 0;
 
     //printf("type = %d\nvalue = %d\n", node->type, node->value.number_value);
 
@@ -214,11 +218,23 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                 fprintf(asm_code_address, "\tcmp %s, 0\n"
                                           "\tje label_%u\n",
                                           REG_NAMES[reg_1], actual_label_number);
+
+                print_cmp_reg_and_const(back_end_base, reg_1, 0);
+                print_je(back_end_base, 0);
+                label_address_1 = back_end_base->instruction_pointer;
+
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
                 fprintf(asm_code_address, "label_%u:\n", actual_label_number);
                 fprintf(asm_code_address, "\n");
 
-                free_reg(reg_1);//TODO можно ли освободить раньше?
+                label_address_2 = back_end_base->instruction_pointer;
+                back_end_base->instruction_pointer = label_address_1 - 4;
+
+                print_const_4_byte(back_end_base, label_address_2 - label_address_1);
+
+                back_end_base->instruction_pointer = label_address_2;
+
+                free_reg(reg_1);
                 free_reg(reg_2);
                 return 0x0;
             case WHILE:
@@ -520,6 +536,36 @@ void print_end_of_programm(back_end_base_t* back_end_base)
     back_end_base->byte_code[back_end_base->instruction_pointer + 9] = 0x05;
 
     back_end_base->instruction_pointer += 10;
+
+    return;
+}
+
+void print_cmp_reg_and_const(back_end_base_t* back_end_base, uint8_t reg, int value)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x81;
+
+    back_end_base->instruction_pointer += 2;
+
+    print_reg_to_reg(back_end_base, reg, 7);
+
+    print_const_4_byte(back_end_base, value);
+
+    return;
+}
+
+void print_je(back_end_base_t* back_end_base, unsigned int label_address)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x0f;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x84;
+
+    back_end_base->instruction_pointer += 2;
+
+    print_const_4_byte(back_end_base, label_address);
 
     return;
 }

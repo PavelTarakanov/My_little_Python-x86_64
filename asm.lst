@@ -1,138 +1,142 @@
      1                                  section .data
      2 00000000 0000000000000000        	n dq 0
-     3 00000008 0000000000000000        	d dq 0
-     4 00000010 00<rep 14h>             	input_str times 20 db 0
-     5 00000024 00<rep 14h>             	output_str times 20 db 0
-     6                                  section .text
-     7                                  	global _start
-     8                                  _start:
-     9 00000000 B800000000              	mov rax, 0
-    10 00000005 488B0C25[08000000]      	mov rcx, [d]
-    11 0000000D 480FAFC1                	imul rax, rcx
-    12 00000011 48890425[00000000]      	mov [n], rax
-    13                                  
-    14 00000019 B83C000000              	mov rax, 60
-    15 0000001E 4831FF                  	xor rdi, rdi
-    16 00000021 0F05                    	syscall
-    17                                  ;------------------------------------------------------------------
-    18                                  print:
-    19 00000023 488D3C25[24000000]      	lea rdi, output_str
-    20                                  
-    21 0000002B 4883F800                	cmp rax, 0
-    22 0000002F 7F0C                    	jg pozitive
-    23 00000031 48F7D0                  	not rax
-    24 00000034 48FFC0                  	inc rax
-    25 00000037 C6072D                  	mov byte [rdi], '-'
-    26 0000003A 48FFC7                  	inc rdi
-    27                                  pozitive:
-    28 0000003D 4831C9                  	xor rcx, rcx                ;rcx = 0
-    29 00000040 B100                    	mov cl, 0                   ;counter
-    30                                  
-    31                                  dec_count_digits:
-    32 00000042 FEC1                    	inc cl                      ;cl++
-    33 00000044 4831D2                  	xor rdx, rdx
-    34 00000047 BB0A000000              	mov rbx, 10
-    35 0000004C 48F7F3                  	div rbx
-    36 0000004F 52                      	push rdx
-    37 00000050 4885C0                  	test rax, rax
-    38 00000053 75ED                    	jnz dec_count_digits
-    39                                  
-    40                                  print_dec:
-    41 00000055 58                      	pop rax
-    42 00000056 0430                    	add al, '0'
-    43 00000058 8807                    	mov [rdi], al
-    44 0000005A 48FFC7                  	inc rdi                     ;кdi++
-    45 0000005D E2F6                    	loop print_dec
-    46                                  
-    47 0000005F C6070A                  	mov byte [rdi], 10
-    48                                  
-    49                                  print_and_free_buffer:
-    50 00000062 488D3425[24000000]      	lea rsi, output_str      ; copy address
-    51 0000006A 488D3C25[24000000]      	lea rdi, output_str      ; copy begin(to cmp symbol abd '\0')
-    52 00000072 4831C9                  	xor rcx, rcx            ; len counter
-    53                                  
-    54                                  len_calculate:
-    55 00000075 803F00                  	cmp byte [rdi], 0       ; if '\0'
-    56 00000078 7408                    	je print_str
-    57 0000007A 48FFC1                  	inc rcx                 ; len counter++
-    58 0000007D 48FFC7                  	inc rdi                 ; next symabol
-    59 00000080 EBF3                    	jmp len_calculate
-    60                                  
-    61                                  print_str:
-    62 00000082 B801000000              	mov rax, 1              ; syscall number
-    63 00000087 BF01000000              	mov rdi, 1              ; stdout
-    64 0000008C 4889CA                  	mov rdx, rcx            ; str len
-    65 0000008F 0F05                    	syscall                 ; print str
-    66                                  
-    67 00000091 B914000000              	mov rcx, 20
-    68 00000096 488D3C25[24000000]      	lea rdi, output_str
-    69                                  
-    70                                  free_buffer:
-    71                                  
-    72 0000009E C60700                  	mov byte [rdi], 0
-    73 000000A1 48FFC7                  	inc rdi
-    74 000000A4 E2F8                    	loop free_buffer
+     3 00000008 00<rep 14h>             	input_str times 20 db 0
+     4 0000001C 00<rep 14h>             	output_str times 20 db 0
+     5                                  section .text
+     6                                  	global _start
+     7                                  _start:
+     8 00000000 488B0425[00000000]      	mov rax, [n]
+     9 00000008 B902000000              	mov rcx, 2
+    10 0000000D 4829C8                  	sub rax, rcx
+    11 00000010 4883F800                	cmp rax, 0
+    12 00000014 740D                    	je label_0
+    13 00000016 B94DE10100              	mov rcx, 123213
+    14 0000001B 48890C25[00000000]      	mov [n], rcx
+    15                                  
+    16                                  label_0:
+    17                                  
+    18 00000023 B83C000000              	mov rax, 60
+    19 00000028 4831FF                  	xor rdi, rdi
+    20 0000002B 0F05                    	syscall
+    21                                  ;------------------------------------------------------------------
+    22                                  print:
+    23 0000002D 488D3C25[1C000000]      	lea rdi, output_str
+    24                                  
+    25 00000035 4883F800                	cmp rax, 0
+    26 00000039 7F0C                    	jg pozitive
+    27 0000003B 48F7D0                  	not rax
+    28 0000003E 48FFC0                  	inc rax
+    29 00000041 C6072D                  	mov byte [rdi], '-'
+    30 00000044 48FFC7                  	inc rdi
+    31                                  pozitive:
+    32 00000047 4831C9                  	xor rcx, rcx                ;rcx = 0
+    33 0000004A B100                    	mov cl, 0                   ;counter
+    34                                  
+    35                                  dec_count_digits:
+    36 0000004C FEC1                    	inc cl                      ;cl++
+    37 0000004E 4831D2                  	xor rdx, rdx
+    38 00000051 BB0A000000              	mov rbx, 10
+    39 00000056 48F7F3                  	div rbx
+    40 00000059 52                      	push rdx
+    41 0000005A 4885C0                  	test rax, rax
+    42 0000005D 75ED                    	jnz dec_count_digits
+    43                                  
+    44                                  print_dec:
+    45 0000005F 58                      	pop rax
+    46 00000060 0430                    	add al, '0'
+    47 00000062 8807                    	mov [rdi], al
+    48 00000064 48FFC7                  	inc rdi                     ;кdi++
+    49 00000067 E2F6                    	loop print_dec
+    50                                  
+    51 00000069 C6070A                  	mov byte [rdi], 10
+    52                                  
+    53                                  print_and_free_buffer:
+    54 0000006C 488D3425[1C000000]      	lea rsi, output_str      ; copy address
+    55 00000074 488D3C25[1C000000]      	lea rdi, output_str      ; copy begin(to cmp symbol abd '\0')
+    56 0000007C 4831C9                  	xor rcx, rcx            ; len counter
+    57                                  
+    58                                  len_calculate:
+    59 0000007F 803F00                  	cmp byte [rdi], 0       ; if '\0'
+    60 00000082 7408                    	je print_str
+    61 00000084 48FFC1                  	inc rcx                 ; len counter++
+    62 00000087 48FFC7                  	inc rdi                 ; next symabol
+    63 0000008A EBF3                    	jmp len_calculate
+    64                                  
+    65                                  print_str:
+    66 0000008C B801000000              	mov rax, 1              ; syscall number
+    67 00000091 BF01000000              	mov rdi, 1              ; stdout
+    68 00000096 4889CA                  	mov rdx, rcx            ; str len
+    69 00000099 0F05                    	syscall                 ; print str
+    70                                  
+    71 0000009B B914000000              	mov rcx, 20
+    72 000000A0 488D3C25[1C000000]      	lea rdi, output_str
+    73                                  
+    74                                  free_buffer:
     75                                  
-    76 000000A6 C3                      	ret
-    77                                  ;------------------------------------------------------------
-    78                                  input:
-    79 000000A7 53                      	push rbx
-    80 000000A8 51                      	push rcx
-    81 000000A9 52                      	push rdx
-    82 000000AA 57                      	push rdi
-    83 000000AB 56                      	push rsi
-    84 000000AC B800000000              	mov rax, 0
-    85 000000B1 BF00000000              	mov rdi, 0
-    86 000000B6 488D3425[10000000]      	lea rsi, input_str
-    87 000000BE BA14000000              	mov rdx, 20
-    88 000000C3 0F05                    	syscall
-    89                                  
-    90 000000C5 488D3C25[10000000]      	lea rdi, input_str
-    91 000000CD 4831C0                  	xor rax, rax
-    92 000000D0 BE01000000              	mov rsi, 1                   ;флаг знака
+    76 000000A8 C60700                  	mov byte [rdi], 0
+    77 000000AB 48FFC7                  	inc rdi
+    78 000000AE E2F8                    	loop free_buffer
+    79                                  
+    80 000000B0 C3                      	ret
+    81                                  ;------------------------------------------------------------
+    82                                  input:
+    83 000000B1 53                      	push rbx
+    84 000000B2 51                      	push rcx
+    85 000000B3 52                      	push rdx
+    86 000000B4 57                      	push rdi
+    87 000000B5 56                      	push rsi
+    88 000000B6 B800000000              	mov rax, 0
+    89 000000BB BF00000000              	mov rdi, 0
+    90 000000C0 488D3425[08000000]      	lea rsi, input_str
+    91 000000C8 BA14000000              	mov rdx, 20
+    92 000000CD 0F05                    	syscall
     93                                  
-    94 000000D5 4831C9                  	xor rcx, rcx
-    95                                  	skip_spaces:
-    96 000000D8 8A0F                    	mov cl, [rdi]
-    97 000000DA 80F920                  	cmp cl, ' '
-    98 000000DD 7505                    	jne check_sign
-    99 000000DF 48FFC7                  	inc rdi
-   100 000000E2 EBF4                    	jmp skip_spaces
-   101                                  check_sign:
-   102 000000E4 8A0F                    	mov cl, [rdi]
-   103 000000E6 80F92D                  	cmp cl, '-'
-   104 000000E9 7402                    	je set_negative
-   105 000000EB EB0A                    	jmp make_number
-   106                                  set_negative:
-   107 000000ED 48C7C6FFFFFFFF          	mov rsi, -1
-   108 000000F4 48FFC7                  	inc rdi
-   109                                  
-   110                                  make_number:
-   111 000000F7 8A0F                    	mov cl, [rdi]
-   112 000000F9 80F930                  	cmp cl, '0'
-   113 000000FC 7C14                    	jl done
-   114 000000FE 80F939                  	cmp cl, '9'
-   115 00000101 7F0F                    	jg done
-   116                                  
-   117 00000103 80E930                  	sub cl, '0'
-   118 00000106 486BC00A                	imul rax, 10
-   119 0000010A 4801C8                  	add rax, rcx
+    94 000000CF 488D3C25[08000000]      	lea rdi, input_str
+    95 000000D7 4831C0                  	xor rax, rax
+    96 000000DA BE01000000              	mov rsi, 1                   ;флаг знака
+    97                                  
+    98 000000DF 4831C9                  	xor rcx, rcx
+    99                                  	skip_spaces:
+   100 000000E2 8A0F                    	mov cl, [rdi]
+   101 000000E4 80F920                  	cmp cl, ' '
+   102 000000E7 7505                    	jne check_sign
+   103 000000E9 48FFC7                  	inc rdi
+   104 000000EC EBF4                    	jmp skip_spaces
+   105                                  check_sign:
+   106 000000EE 8A0F                    	mov cl, [rdi]
+   107 000000F0 80F92D                  	cmp cl, '-'
+   108 000000F3 7402                    	je set_negative
+   109 000000F5 EB0A                    	jmp make_number
+   110                                  set_negative:
+   111 000000F7 48C7C6FFFFFFFF          	mov rsi, -1
+   112 000000FE 48FFC7                  	inc rdi
+   113                                  
+   114                                  make_number:
+   115 00000101 8A0F                    	mov cl, [rdi]
+   116 00000103 80F930                  	cmp cl, '0'
+   117 00000106 7C14                    	jl done
+   118 00000108 80F939                  	cmp cl, '9'
+   119 0000010B 7F0F                    	jg done
    120                                  
-   121 0000010D 48FFC7                  	inc rdi
-   122 00000110 EBE5                    	jmp make_number
-   123                                  done:
-   124 00000112 480FAFC6                	imul rax, rsi
-   125 00000116 B914000000              	mov rcx, 20
-   126 0000011B 488D3C25[10000000]      	lea rdi, input_str
-   127                                  free_input_buffer:
-   128 00000123 C60700                  	mov byte [rdi], 0
-   129 00000126 48FFC7                  	inc rdi
-   130 00000129 E2F8                    	loop free_input_buffer
-   131                                  
-   132 0000012B 5E                      	pop rsi
-   133 0000012C 5F                      	pop rdi
-   134 0000012D 5A                      	pop rdx
-   135 0000012E 59                      	pop rcx
-   136 0000012F 5B                      	pop rbx
-   137                                  
-   138 00000130 C3                      	ret
+   121 0000010D 80E930                  	sub cl, '0'
+   122 00000110 486BC00A                	imul rax, 10
+   123 00000114 4801C8                  	add rax, rcx
+   124                                  
+   125 00000117 48FFC7                  	inc rdi
+   126 0000011A EBE5                    	jmp make_number
+   127                                  done:
+   128 0000011C 480FAFC6                	imul rax, rsi
+   129 00000120 B914000000              	mov rcx, 20
+   130 00000125 488D3C25[08000000]      	lea rdi, input_str
+   131                                  free_input_buffer:
+   132 0000012D C60700                  	mov byte [rdi], 0
+   133 00000130 48FFC7                  	inc rdi
+   134 00000133 E2F8                    	loop free_input_buffer
+   135                                  
+   136 00000135 5E                      	pop rsi
+   137 00000136 5F                      	pop rdi
+   138 00000137 5A                      	pop rdx
+   139 00000138 59                      	pop rcx
+   140 00000139 5B                      	pop rbx
+   141                                  
+   142 0000013A C3                      	ret
