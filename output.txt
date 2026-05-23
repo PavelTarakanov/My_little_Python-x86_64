@@ -1,1 +1,1 @@
-( ; ( IF ( - ( n nil nil )( 2 nil nil ))( = ( n nil nil )( 123213 nil nil )))( END_OF_PROGRAMM nil nil ))
+( ; ( WHILE ( - ( n nil nil )( 2 nil nil ))( = ( n nil nil )( 123213 nil nil )))( END_OF_PROGRAMM nil nil ))

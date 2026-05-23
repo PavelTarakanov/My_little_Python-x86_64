@@ -1,7 +1,7 @@
 digraph{
 	Z[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
 	Z -> ZL
-	ZL[shape = record, style="filled",fillcolor="lightgreen", label="{IF}"];
+	ZL[shape = record, style="filled",fillcolor="lightgreen", label="{WHILE}"];
 	ZL -> ZLL
 	ZLL[shape = record, style="filled",fillcolor="lightgreen", label="{-}"];
 	ZLL -> ZLLL

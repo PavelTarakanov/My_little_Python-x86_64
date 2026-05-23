@@ -7,6 +7,8 @@
 #include "file_using.h"
 #include "commands.h"
 #include "language.h"
+//TODO все mov можно объединить в одну функцию, передавая ей код которые определяется какой режим
+//TODO также по идее и с jmp можно
 
 #define free_reg(reg_number) back_end_base->regs[reg_number].free_flag = true
 
@@ -37,7 +39,9 @@ static void print_mov_reg_to_reg(back_end_base_t* back_end_base,
                uint8_t transmitter_register, uint8_t receiver_register);
 static void print_cmp_reg_and_const(back_end_base_t* back_end_base, uint8_t reg, int value);
 static void print_je(back_end_base_t* back_end_base, unsigned int label_address);
+static void print_jne(back_end_base_t* back_end_base, unsigned int label_address);
 static void print_end_of_programm(back_end_base_t* back_end_base);
+static void print_bin_lib(back_end_base_t* back_end_base);
 static void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address);
 
 tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
@@ -46,6 +50,7 @@ tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
 
     FILE* asm_code_address = NULL;
     FILE* byte_code_address = NULL;
+    unsigned int actual_instruction_pointer = 0;
 
     if (check_file_opening(argv[2], &asm_code_address, "w+"))
     {
@@ -81,7 +86,27 @@ tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
                        byte_code_address, asm_code_address))
         return ASM_MAKING_ERROR;
 
+    print_bin_lib(back_end_base);
+
+    back_end_base->text_section_len = back_end_base->instruction_pointer - 0x1000;
+
     print_data(back_end_base);
+
+    back_end_base->data_section_len = back_end_base->instruction_pointer - 0x2000;
+
+    actual_instruction_pointer = back_end_base->instruction_pointer;
+
+    back_end_base->instruction_pointer = 0x98;
+
+    print_const(back_end_base, back_end_base->text_section_len);
+    print_const(back_end_base, back_end_base->text_section_len);
+
+    back_end_base->instruction_pointer = 0xd0;
+
+    print_const(back_end_base, back_end_base->data_section_len);
+    print_const(back_end_base, back_end_base->data_section_len);
+
+    back_end_base->instruction_pointer = actual_instruction_pointer;
 
     for (unsigned int i = 0; i < back_end_base->instruction_pointer; i++)
         fputc(back_end_base->byte_code[i], byte_code_address);
@@ -240,21 +265,41 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
             case WHILE:
                 back_end_base->label_number++;
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+
                 free_reg(reg_1);
+
                 fprintf(asm_code_address, "\tcmp %s, 0\n"
                                           "\tje label_%u\n",
                                           REG_NAMES[reg_1], actual_label_number);
+
+                print_cmp_reg_and_const(back_end_base, reg_1, 0);
+                print_je(back_end_base, 0x00);
+
                 back_end_base->label_number++;
+
                 fprintf(asm_code_address, "label_%u:\n", actual_label_number + 1);
+
+                label_address_2 = back_end_base->instruction_pointer;
+
                 reg_2 = make_node_code(node->right, back_end_base, byte_code_address, asm_code_address);
                 reg_1 = make_node_code(node->left, back_end_base, byte_code_address, asm_code_address);
+
                 free_reg(reg_2);
                 free_reg(reg_1);
+
+
                 fprintf(asm_code_address, "\tcmp %s, 0\n"
                                           "\tjne label_%u\n"
                                           "label_%u:\n",
                                           REG_NAMES[reg_2], actual_label_number + 1,
                                           actual_label_number);
+
+                print_cmp_reg_and_const(back_end_base, reg_2, 0);
+                print_jne(back_end_base, label_address_2 - (back_end_base->instruction_pointer + 6));
+
+                label_address_1 = back_end_base->instruction_pointer;
+                back_end_base->instruction_pointer = label_address_2 - 4;
+                print_const_4_byte(back_end_base, label_address_1 - label_address_2);
                 return 0x0;
             case END_OF_PROGRAMM:
                 fprintf(asm_code_address, "\tmov rax, 60\n"
@@ -570,6 +615,20 @@ void print_je(back_end_base_t* back_end_base, unsigned int label_address)
     return;
 }
 
+void print_jne(back_end_base_t* back_end_base, unsigned int label_address)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x0f;
+    back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x85;
+
+    back_end_base->instruction_pointer += 2;
+
+    print_const_4_byte(back_end_base, label_address);
+
+    return;
+}
+
 void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address)
 {
     assert(asm_code_address);
@@ -700,5 +759,22 @@ void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address)
         "\tpop rbx\n"
         "\n"
         "\tret\n");
+    return;
+}
+
+void print_bin_lib(back_end_base_t* back_end_base)
+{
+    assert(back_end_base);
+
+    for(unsigned int i = 0; i < PRINT_FUNC_LEN; i++)
+        back_end_base->byte_code[back_end_base->instruction_pointer + i] = PRINT_FUNC[i];
+
+    back_end_base->instruction_pointer += PRINT_FUNC_LEN;
+
+    for(unsigned int i = 0; i < INPUT_FUNC_LEN; i++)
+        back_end_base->byte_code[back_end_base->instruction_pointer + i] = INPUT_FUNC[i];
+
+    back_end_base->instruction_pointer += INPUT_FUNC_LEN;
+
     return;
 }

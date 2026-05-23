@@ -10,11 +10,16 @@ _start:
 	sub rax, rcx
 	cmp rax, 0
 	je label_0
-	mov rcx, 123213
-	mov [n], rcx
+label_1:
+	mov rax, 123213
+	mov [n], rax
 
+	mov rax, [n]
+	mov rcx, 2
+	sub rax, rcx
+	cmp rax, 0
+	jne label_1
 label_0:
-
 	mov rax, 60
 	xor rdi, rdi
 	syscall
