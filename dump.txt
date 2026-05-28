@@ -1,19 +1,9 @@
 digraph{
 	Z[shape = record, style="filled",fillcolor="lightgreen", label="{OP_END}"];
 	Z -> ZL
-	ZL[shape = record, style="filled",fillcolor="lightgreen", label="{WHILE}"];
+	ZL[shape = record, style="filled",fillcolor="lightgreen", label="{PRINT}"];
 	ZL -> ZLL
-	ZLL[shape = record, style="filled",fillcolor="lightgreen", label="{-}"];
-	ZLL -> ZLLL
-	ZLLL[shape = record, style="filled",fillcolor="lightblue", label="{n}"];
-	ZLL -> ZLLR
-	ZLLR[shape = record, style="filled",fillcolor="yellow", label="{2}"];
-	ZL -> ZLR
-	ZLR[shape = record, style="filled",fillcolor="lightgreen", label="{=}"];
-	ZLR -> ZLRL
-	ZLRL[shape = record, style="filled",fillcolor="lightblue", label="{n}"];
-	ZLR -> ZLRR
-	ZLRR[shape = record, style="filled",fillcolor="yellow", label="{123213}"];
+	ZLL[shape = record, style="filled",fillcolor="yellow", label="{4}"];
 	Z -> ZR
 	ZR[shape = record, style="filled",fillcolor="lightgreen", label="{END_OF_PROGRAMM}"];
 }

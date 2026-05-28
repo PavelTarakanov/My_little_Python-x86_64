@@ -75,78 +75,79 @@ const uint8_t DATA_HEADER[] = {
     0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-const unsigned int PRINT_FUNC_LEN = 134;
+const unsigned int PRINT_FUNC_LEN = 138; // Длина изменилась на 138 байт!
 
 const uint8_t PRINT_FUNC[] = {
-    // lea rdi, output_str (адрес строки для вывода)
-    0x48, 0x8D, 0x3C, 0x25, 0x1C, 0x00, 0x00, 0x00,  // lea rdi, [output_str]
+    // 1. Инициализация буфера вывода
+    0x48, 0x8D, 0x3C, 0x25, 0x1C, 0x20, 0x40, 0x00,  // [0] lea rdi, [0x40201C]
 
-    // cmp rax, 0 (проверка на отрицательное число)
-    0x48, 0x83, 0xF8, 0x00,  // cmp rax, 0
-    0x7F, 0x0C,              // jg positive (если >0, пропускаем обработку минуса)
+    // 2. Проверка знака числа в RAX
+    0x48, 0x83, 0xF8, 0x00,                          // [8] cmp rax, 0
+    0x7F, 0x0F,                                      // [12] jg positive (ИЗМЕНЕНО: прыжок на 15 байт вперед!)
 
     // Обработка отрицательного числа
-    0x48, 0xF7, 0xD0,        // not rax (инвертируем биты)
-    0x48, 0xFF, 0xC0,        // inc rax (получаем модуль числа)
-    0xC6, 0x07, 0x2D,        // mov byte [rdi], '-' (ставим знак минус)
-    0x48, 0xFF, 0xC7,        // inc rdi (сдвигаем указатель)
+    0x48, 0xF7, 0xD0,                                // [14] not rax
+    0x48, 0xFF, 0xC0,                                // [17] inc rax
+    0xC6, 0x07, 0x2D,                                // [20] mov byte [rdi], '-'
+    0x48, 0xFF, 0xC7,                                // [23] inc rdi
 
-    // positive: подготовка к выводу цифр
-    0x48, 0x31, 0xC9,        // xor rcx, rcx (обнуляем счётчик цифр)
-    0x48, 0x31, 0xD2,        // xor rdx, rdx (обнуляем остаток)
-    0xBB, 0x0A, 0x00, 0x00, 0x00,  // mov rbx, 10 (делитель)
+// positive: (Адрес в коде: 26)
+    // 3. Подготовка к разложению на цифры
+    0x48, 0x31, 0xC9,                                // [26] xor rcx, rcx
+    0x48, 0xBB, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [29] movabs rbx, 10 (ИЗМЕНЕНО: 64-битный mov!)
 
-    // dec_count_digits: считаем количество цифр
-    0x48, 0xF7, 0xF3,        // div rbx (rax / 10, остаток в rdx)
-    0x52,                    // push rdx (сохраняем остаток на стек)
-    0x48, 0x85, 0xC0,        // test rax, rax (проверяем, остались ли цифры)
-    0x75, 0xF1,              // jnz dec_count_digits (если да, продолжаем)
+// dec_count_digits: (Адрес в коде: 39)
+    0x48, 0x31, 0xD2,                                // [39] xor rdx, rdx
+    0x48, 0xF7, 0xF3,                                // [42] div rbx
+    0x52,                                            // [45] push rdx
+    0x48, 0xFF, 0xC1,                                // [46] inc rcx
+    0x48, 0x85, 0xC0,                                // [49] test rax, rax
+    0x75, 0xF1,                                      // [52] jnz dec_count_digits (ИЗМЕНЕНО: прыжок на -15 байт)
 
-    // print_dec: выводим цифры в обратном порядке
-    0x58,                    // pop rax (достаём цифру из стека)
-    0x04, 0x30,              // add al, '0' (преобразуем в ASCII)
-    0x88, 0x07,              // mov [rdi], al (записываем в буфер)
-    0x48, 0xFF, 0xC7,        // inc rdi (сдвигаем указатель)
-    0xE2, 0xF6,              // loop print_dec (повторяем для всех цифр)
+// print_dec: (Адрес в коде: 54)
+    0x58,                                            // [54] pop rax
+    0x04, 0x30,                                      // [55] add al, '0'
+    0x88, 0x07,                                      // [57] mov [rdi], al
+    0x48, 0xFF, 0xC7,                                // [59] inc rdi
+    0xE2, 0xF6,                                      // [62] loop print_dec (ИЗМЕНЕНО: прыжок на -10 байт)
 
-    // Добавляем символ новой строки
-    0xC6, 0x07, 0x0A,        // mov byte [rdi], 10 ('\n')
-    0x48, 0xFF, 0xC7,        // inc rdi
+    // 4. Завершение строки
+    0xC6, 0x07, 0x0A,                                // [64] mov byte [rdi], 10 ('\n')
+    0x48, 0xFF, 0xC7,                                // [67] inc rdi
+    0xC6, 0x07, 0x00,                                // [70] mov byte [rdi], 0
 
-    // Завершаем строку нулём
-    0xC6, 0x07, 0x00,        // mov byte [rdi], 0
+    // 5. Вычисление длины
+    0x48, 0x8D, 0x34, 0x25, 0x1C, 0x20, 0x40, 0x00,  // [73] lea rsi, [0x40201C]
+    0x48, 0x31, 0xC9,                                // [81] xor rcx, rcx
+    0x48, 0x8D, 0x3C, 0x25, 0x1C, 0x20, 0x40, 0x00,  // [84] lea rdi, [0x40201C]
 
-    // lea rsi, output_str (адрес начала строки для вывода)
-    0x48, 0x8D, 0x34, 0x25, 0x1C, 0x00, 0x00, 0x00,  // lea rsi, [output_str]
+// len_loop: (Адрес в коде: 92)
+    0x80, 0x3F, 0x00,                                // [92] cmp byte [rdi], 0
+    0x74, 0x06,                                      // [95] je print_str (Прыжок на +6 байт)
+    0x48, 0xFF, 0xC1,                                // [97] inc rcx
+    0x48, 0xFF, 0xC7,                                // [100] inc rdi
+    0xEB, 0xF3,                                      // [103] jmp len_loop (ИЗМЕНЕНО: прыжок на -13 байт!)
 
-    // len_calculate: вычисляем длину строки
-    0x48, 0x31, 0xC9,        // xor rcx, rcx (обнуляем счётчик)
-    0x48, 0x8D, 0x3C, 0x25, 0x1C, 0x00, 0x00, 0x00,  // lea rdi, [output_str]
+// print_str: (Адрес в коде: 105)
+    // 6. Системный вызов sys_write
+    0xB8, 0x01, 0x00, 0x00, 0x00,                    // [105] mov rax, 1 (sys_write)
+    0xBF, 0x01, 0x00, 0x00, 0x00,                    // [110] mov rdi, 1 (stdout)
+    0x48, 0x89, 0xCA,                                // [115] mov rdx, rcx
+    0x0F, 0x05,                                      // [118] syscall
 
-    // len_loop:
-    0x80, 0x3F, 0x00,        // cmp byte [rdi], 0
-    0x74, 0x06,              // je print_str
-    0x48, 0xFF, 0xC1,        // inc rcx
-    0x48, 0xFF, 0xC7,        // inc rdi
-    0xEB, 0xF5,              // jmp len_loop
+    // 7. Очистка буфера
+    0xB9, 0x40, 0x00, 0x00, 0x00,                    // [120] mov rcx, 64
+    0x48, 0x8D, 0x3C, 0x25, 0x1C, 0x20, 0x40, 0x00,  // [125] lea rdi, [0x40201C]
 
-    // print_str: системный вызов write
-    0xB8, 0x01, 0x00, 0x00, 0x00,  // mov rax, 1 (sys_write)
-    0xBF, 0x01, 0x00, 0x00, 0x00,  // mov rdi, 1 (stdout)
-    0x48, 0x89, 0xCA,        // mov rdx, rcx (длина строки)
-    0x0F, 0x05,              // syscall
+// clear_loop: (Адрес в коде: 133)
+    0xC6, 0x07, 0x00,                                // [133] mov byte [rdi], 0
+    0x48, 0xFF, 0xC7,                                // [136] inc rdi
+    0xE2, 0xF8,                                      // [139] loop clear_loop (Прыжок на -8 байт)
 
-    // free_buffer: очистка буфера
-    0xB9, 0x40, 0x00, 0x00, 0x00,  // mov rcx, 64 (размер буфера)
-    0x48, 0x8D, 0x3C, 0x25, 0x1C, 0x00, 0x00, 0x00,  // lea rdi, [output_str]
-
-    // clear_loop:
-    0xC6, 0x07, 0x00,        // mov byte [rdi], 0
-    0x48, 0xFF, 0xC7,        // inc rdi
-    0xE2, 0xF8,              // loop clear_loop
-
-    0xC3                     // ret
+    0xC3                                             // [141] ret
 };
+
+
 
 const unsigned int INPUT_FUNC_LEN = 138;
 
@@ -237,6 +238,15 @@ const uint8_t INPUT_FUNC[] = {
 
     // ret
     0xC3                     // ret
+};
+
+const unsigned int CALL_PRINT_STR_LEN = 14;
+
+const uint8_t CALL_PRINT_STR[] = {
+    0x51,//push rcx
+    0x48, 0xB9, 0x00, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,//mov rcx, [402000](здесь лежит адрес print)
+    0xFF, 0x11,//call [rcx]
+    0x59,//pop rcx
 };
 
 #endif //COMMAND_H

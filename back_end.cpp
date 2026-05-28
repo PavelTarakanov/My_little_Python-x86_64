@@ -43,6 +43,8 @@ static void print_jne(back_end_base_t* back_end_base, unsigned int label_address
 static void print_end_of_programm(back_end_base_t* back_end_base);
 static void print_bin_lib(back_end_base_t* back_end_base);
 static void print_asm_lib(FILE* asm_code_address, FILE* byte_code_address);
+static void print_call_print(back_end_base_t* back_end_base, uint8_t reg_1);
+
 
 tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
 {
@@ -108,8 +110,7 @@ tree_errors make_asm_code(back_end_base_t* back_end_base, char** argv)
 
     back_end_base->instruction_pointer = actual_instruction_pointer;
 
-    for (unsigned int i = 0; i < back_end_base->instruction_pointer; i++)
-        fputc(back_end_base->byte_code[i], byte_code_address);
+    fwrite(back_end_base->byte_code, sizeof(uint8_t), back_end_base->instruction_pointer, byte_code_address);
 
     print_asm_lib(asm_code_address, byte_code_address);
 
@@ -319,6 +320,8 @@ uint8_t make_node_code(node_t* node, back_end_base_t* back_end_base,
                        "\tmov rax, %s\n"
                        "\tcall print\n"
                        "\tpop rax\n", REG_NAMES[reg_1]);
+
+                print_call_print(back_end_base, reg_1);
                 return 0x0;
             case INPUT:
                 fprintf(asm_code_address,
@@ -393,6 +396,7 @@ void print_const_to_reg(back_end_base_t* back_end_base, uint8_t reg, int value)
 
     return;
 }
+
 void print_reg_to_reg(back_end_base_t* back_end_base, uint8_t reg_1, uint8_t reg_2)
 {
     assert(back_end_base);//reg_1 приёмник, reg_2 источник
@@ -415,7 +419,7 @@ void print_mem_to_reg(back_end_base_t* back_end_base,
 
     back_end_base->instruction_pointer += 4;
     print_const_4_byte(back_end_base,
-                0x402000 + (variable_number * 8));
+                0x402000 + 56 + (variable_number * 8));
 
     return;
 }
@@ -432,7 +436,7 @@ void print_reg_to_mem(back_end_base_t* back_end_base,
 
     back_end_base->instruction_pointer += 4;
     print_const_4_byte(back_end_base,
-                0x402000 + (variable_number * 8));
+                0x402000 + 56 + (variable_number * 8));
     return;
 }
 
@@ -547,6 +551,8 @@ void print_mov_reg_to_reg(back_end_base_t* back_end_base,
     back_end_base->byte_code[back_end_base->instruction_pointer] = 0x48;//для 64-битных
     back_end_base->byte_code[back_end_base->instruction_pointer + 1] = 0x89;//непосредственно mov
 
+    back_end_base->instruction_pointer += 2;
+
     print_reg_to_reg(back_end_base, receiver_register, transmitter_register);
 
     return;
@@ -558,6 +564,9 @@ void print_data(back_end_base_t* back_end_base)
 
     for(;back_end_base->instruction_pointer < 0x2000; back_end_base->instruction_pointer++)
         back_end_base->byte_code[back_end_base->instruction_pointer] = 0x00;
+
+    back_end_base->instruction_pointer += 56;//для двух строк по 20
+                                             //+ 4 байта адреса print + 4 байта адреса input
 
     for (int i = 0; i < back_end_base->tree->number_of_variables; i++)
         print_const(back_end_base, back_end_base->tree->variable_list[i].var_value);
@@ -766,15 +775,51 @@ void print_bin_lib(back_end_base_t* back_end_base)
 {
     assert(back_end_base);
 
+    unsigned int print_address = back_end_base->instruction_pointer;
+    unsigned int input_address = 0;
+    unsigned int instruction_pointer = 0;
+
     for(unsigned int i = 0; i < PRINT_FUNC_LEN; i++)
         back_end_base->byte_code[back_end_base->instruction_pointer + i] = PRINT_FUNC[i];
 
     back_end_base->instruction_pointer += PRINT_FUNC_LEN;
 
+    input_address = back_end_base->instruction_pointer;
+
     for(unsigned int i = 0; i < INPUT_FUNC_LEN; i++)
         back_end_base->byte_code[back_end_base->instruction_pointer + i] = INPUT_FUNC[i];
 
     back_end_base->instruction_pointer += INPUT_FUNC_LEN;
+
+    instruction_pointer = back_end_base->instruction_pointer;
+    back_end_base->instruction_pointer = 0x2000;
+
+    print_const(back_end_base, print_address);
+    print_const(back_end_base, input_address);
+
+    back_end_base->instruction_pointer = instruction_pointer;
+
+    return;
+}
+
+void print_call_print(back_end_base_t* back_end_base, uint8_t reg)
+{
+    assert(back_end_base);
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x50;//push rax
+
+    back_end_base->instruction_pointer++;
+
+    print_mov_reg_to_reg(back_end_base, 0, reg);//аргумент в rax
+
+    for (unsigned int i = 0; i < CALL_PRINT_STR_LEN; i++)
+        back_end_base->byte_code[back_end_base->instruction_pointer + i] = CALL_PRINT_STR[i];
+
+    back_end_base->instruction_pointer += CALL_PRINT_STR_LEN;
+
+    back_end_base->byte_code[back_end_base->instruction_pointer] = 0x58;//pop rax
+
+    back_end_base->instruction_pointer++;
 
     return;
 }
